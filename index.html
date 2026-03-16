@@ -1,0 +1,2644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#075e54">
+    <title>Telesap Pro - Real-Time Chat</title>
+    
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-storage-compat.js"></script>
+    
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-tap-highlight-color:transparent}
+        :root{--primary:#00a884;--primary-dark:#008f72;--secondary:#075e54;--bg:#efeae2;--chat-bg:#e5ddd5;--incoming-bubble:#fff;--outgoing-bubble:#d9fdd3;--text:#111b21;--text-secondary:#667781;--accent:#53bdeb;--danger:#dc3545}
+        html,body{height:100%;width:100%;overflow:hidden;position:fixed;touch-action:manipulation;background:var(--bg)}
+        .app-container{width:100%;height:100%;display:flex;flex-direction:column;background:var(--bg);position:relative;padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}
+        .auth-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#00a884 0%,#075e54 100%);display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px;z-index:1000;transition:opacity .3s;overflow-y:auto;-webkit-overflow-scrolling:touch}
+        .auth-screen.hidden{opacity:0;pointer-events:none;display:none}
+        .auth-box{background:#fff;padding:30px 20px;border-radius:20px;box-shadow:0 20px 50px rgba(0,0,0,0.3);width:100%;max-width:400px;animation:slideUp .5s}
+        @media(max-width:480px){.auth-box{padding:25px 15px;border-radius:15px;margin:10px}}
+        .logo-text{font-size:clamp(32px,8vw,48px);font-weight:700;color:#fff;margin-bottom:10px;text-align:center;text-shadow:0 2px 10px rgba(0,0,0,0.2)}
+        .input-group{margin-bottom:15px;width:100%}
+        .input-group label{display:block;margin-bottom:6px;color:var(--text-secondary);font-size:14px;font-weight:500}
+        .input-group input{width:100%;padding:14px 15px;border:2px solid #e0e0e0;border-radius:10px;font-size:16px;outline:none;-webkit-appearance:none}
+        .input-group input:focus{border-color:var(--primary)}
+        .btn-primary{width:100%;padding:14px;background:var(--primary);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;transition:all .2s;margin-top:10px;-webkit-appearance:none;touch-action:manipulation;min-height:44px}
+        .btn-primary:active{transform:scale(0.98);background:var(--primary-dark)}
+        .btn-primary:disabled{opacity:.6;cursor:not-allowed;transform:none}
+        .toggle-auth{text-align:center;margin-top:20px;color:#fff;cursor:pointer;font-size:14px;padding:10px}
+        .main-app{display:none;flex-direction:row;height:100vh;height:100dvh;width:100%;background:#fff;overflow:hidden}
+        .main-app.active{display:flex}
+        .app-header{background:var(--secondary);color:#fff;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;position:relative;z-index:100;box-shadow:0 2px 5px rgba(0,0,0,0.1);height:60px;flex-shrink:0}
+        @media(max-width:480px){.app-header{padding:8px 12px;height:56px}}
+        .header-content{display:flex;align-items:center;gap:12px}
+        .user-avatar{width:40px;height:40px;border-radius:50%;background:#dfe5e7;display:flex;justify-content:center;align-items:center;font-size:18px;font-weight:600;color:var(--text);cursor:pointer;position:relative;overflow:hidden;flex-shrink:0}
+        @media(max-width:480px){.user-avatar{width:36px;height:36px;font-size:16px}}
+        .user-avatar img{width:100%;height:100%;object-fit:cover}
+        .user-avatar::after{content:'';position:absolute;bottom:2px;right:2px;width:10px;height:10px;background:#25d366;border-radius:50%;border:2px solid var(--secondary)}
+        .header-actions{display:flex;gap:5px}
+        .icon-btn{width:40px;height:40px;border-radius:50%;display:flex;justify-content:center;align-items:center;background:transparent;border:none;color:#fff;cursor:pointer;font-size:20px;transition:all .2s;position:relative;-webkit-appearance:none;touch-action:manipulation;min-width:44px;min-height:44px}
+        .icon-btn:active{background:rgba(255,255,255,0.2);transform:scale(0.95)}
+        .sidebar{width:35%;min-width:280px;max-width:380px;background:#fff;border-right:1px solid #d1d7db;display:flex;flex-direction:column;height:100%;transition:transform .3s}
+        @media(max-width:900px){.sidebar{width:100%;max-width:none;position:absolute;top:0;left:0;height:100%;z-index:50;transform:translateX(0)}.sidebar.hidden-mobile{transform:translateX(-100%)}}
+        .sidebar-header{padding:12px 15px;border-bottom:1px solid #e9edef;background:var(--bg);flex-shrink:0}
+        @media(max-width:480px){.sidebar-header{padding:10px 12px}}
+        .search-box{background:#fff;padding:8px 12px;border-radius:25px;display:flex;align-items:center;border:1px solid #e0e0e0}
+        .search-box input{flex:1;background:transparent;border:none;font-size:15px;outline:none;color:var(--text);margin-left:8px;min-width:0}
+        @media(max-width:480px){.search-box input{font-size:16px}}
+        .tabs{display:flex;padding:0;background:var(--secondary);flex-shrink:0}
+        .tab{flex:1;padding:12px;color:rgba(255,255,255,0.7);cursor:pointer;font-size:14px;font-weight:600;text-align:center;transition:all .2s;border-bottom:3px solid transparent;touch-action:manipulation;min-height:44px;display:flex;align-items:center;justify-content:center}
+        .tab:active{background:rgba(255,255,255,0.1)}
+        .tab.active{color:#fff;border-bottom-color:#fff}
+        .chat-list{flex:1;overflow-y:auto;overflow-x:hidden;background:#fff;-webkit-overflow-scrolling:touch}
+        .chat-item{display:flex;align-items:center;gap:12px;padding:12px 15px;cursor:pointer;transition:all .2s;border-bottom:1px solid #f0f2f5;position:relative;touch-action:manipulation;min-height:72px}
+        @media(max-width:480px){.chat-item{padding:10px 12px;gap:10px;min-height:68px}}
+        .chat-item:active{background:#e9edef}
+        .chat-item.active{background:#e9edef}
+        .chat-avatar{width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg,#667781 0%,#111b21 100%);display:flex;justify-content:center;align-items:center;font-size:18px;font-weight:600;color:#fff;flex-shrink:0;overflow:hidden;position:relative}
+        @media(max-width:480px){.chat-avatar{width:44px;height:44px;font-size:16px}}
+        .chat-avatar img{width:100%;height:100%;object-fit:cover}
+        .chat-info{flex:1;min-width:0;overflow:hidden}
+        .chat-name-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+        .chat-name{font-weight:600;font-size:16px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:480px){.chat-name{font-size:15px}}
+        .chat-time{font-size:11px;color:var(--text-secondary);flex-shrink:0;margin-left:5px}
+        .chat-preview-row{display:flex;justify-content:space-between;align-items:center}
+        .chat-preview{font-size:13px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%;display:flex;align-items:center;gap:4px}
+        @media(max-width:480px){.chat-preview{font-size:12px;max-width:65%}}
+        .unread-count{background:var(--primary);color:#fff;font-size:11px;font-weight:600;min-width:20px;height:20px;display:flex;justify-content:center;align-items:center;border-radius:10px;padding:0 6px;flex-shrink:0}
+        .chat-area{flex:1;display:none;flex-direction:column;background:var(--chat-bg);position:relative;height:100%;width:100%}
+        .chat-area.active{display:flex}
+        @media(max-width:900px){.chat-area{position:absolute;top:0;left:0;height:100%;z-index:40;transform:translateX(100%);transition:transform .3s}.chat-area.active-mobile{transform:translateX(0)}}
+        .chat-area.empty{display:flex;justify-content:center;align-items:center;background:#f0f2f5}
+        .chat-header{background:var(--bg);padding:10px 15px;border-bottom:1px solid #e9edef;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;height:60px}
+        @media(max-width:480px){.chat-header{padding:8px 12px;height:56px}}
+        .chat-header-info{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+        .header-back{display:none;background:transparent;border:none;color:var(--primary);font-size:24px;cursor:pointer;margin-right:5px;padding:8px;touch-action:manipulation;min-width:44px;min-height:44px}
+        .header-back:active{opacity:.6}
+        @media(max-width:900px){.header-back{display:block}}
+        .chat-user-info{min-width:0;overflow:hidden}
+        .chat-user-info h3{margin:0;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        @media(max-width:480px){.chat-user-info h3{font-size:15px}}
+        .chat-user-info p{margin:0;font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:15px;display:flex;flex-direction:column;gap:6px;background-image:url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" opacity="0.05"><rect fill="%23000" width="100" height="100"/></svg>');-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
+        @media(max-width:480px){.chat-messages{padding:10px;gap:4px}}
+        .message{max-width:85%;padding:8px 12px;border-radius:8px;font-size:14.5px;line-height:1.4;position:relative;animation:messagePop .3s;box-shadow:0 1px 2px rgba(0,0,0,0.1);word-wrap:break-word;overflow-wrap:break-word}
+        @media(max-width:480px){.message{max-width:90%;font-size:14px;padding:7px 10px}}
+        @media(max-width:360px){.message{max-width:92%;font-size:13.5px}}
+        .message.incoming{background:var(--incoming-bubble);align-self:flex-start;border-bottom-left-radius:2px}
+        .message.outgoing{background:var(--outgoing-bubble);align-self:flex-end;border-bottom-right-radius:2px;margin-left:auto}
+        .message-text{word-wrap:break-word;white-space:pre-wrap;overflow-wrap:break-word}
+        .message-meta{display:flex;justify-content:flex-end;align-items:center;gap:4px;margin-top:3px}
+        .message-time{font-size:10px;color:var(--text-secondary)}
+        .message-status{font-size:12px;color:var(--text-secondary)}
+        .message-status.read{color:var(--accent)}
+        .typing-indicator{display:none;padding:8px 15px;background:var(--incoming-bubble);border-radius:15px;align-self:flex-start;margin-bottom:5px}
+        .typing-indicator.active{display:flex;gap:3px}
+        .typing-dot{width:7px;height:7px;background:var(--text-secondary);border-radius:50%;animation:typingBounce 1.4s infinite ease-in-out both}
+        .typing-dot:nth-child(1){animation-delay:-0.32s}
+        .typing-dot:nth-child(2){animation-delay:-0.16s}
+        .message-input-area{background:var(--bg);padding:10px 15px;display:flex;gap:8px;align-items:flex-end;border-top:1px solid #e9edef;flex-shrink:0;padding-bottom:calc(10px + env(safe-area-inset-bottom))}
+        @media(max-width:480px){.message-input-area{padding:8px 10px;gap:6px}}
+        .input-actions{display:flex;gap:5px;align-items:flex-end}
+        .input-action-btn{width:40px;height:40px;border-radius:50%;background:transparent;border:none;color:var(--text-secondary);cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+        @media(max-width:480px){.input-action-btn{width:36px;height:36px;font-size:18px}}
+        .input-action-btn:active{background:rgba(0,0,0,0.1);transform:scale(0.95)}
+        .message-input{flex:1;padding:10px 15px;border:none;border-radius:25px;font-size:16px;outline:none;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,0.1);transition:all .2s;max-height:120px;resize:none;min-height:44px;font-family:inherit;line-height:1.4}
+        @media(max-width:480px){.message-input{padding:10px 12px;min-height:42px;font-size:16px}}
+        .message-input:focus{box-shadow:0 2px 8px rgba(0,168,132,0.3)}
+        .send-btn{width:44px;height:44px;border-radius:50%;background:var(--primary);border:none;color:#fff;display:flex;justify-content:center;align-items:center;cursor:pointer;transition:all .2s;flex-shrink:0;font-size:18px;touch-action:manipulation}
+        @media(max-width:480px){.send-btn{width:42px;height:42px;font-size:16px}}
+        .send-btn:active{transform:scale(0.95);background:var(--primary-dark)}
+        .voice-btn{width:44px;height:44px;border-radius:50%;background:var(--primary);border:none;color:#fff;display:flex;justify-content:center;align-items:center;cursor:pointer;transition:all .2s;flex-shrink:0;font-size:20px;position:relative}
+        .voice-btn.recording{background:var(--danger);animation:pulse 1s infinite}
+        @media(max-width:480px){.voice-btn{width:42px;height:42px;font-size:18px}}
+        .empty-chat-state{text-align:center;color:var(--text-secondary);padding:20px}
+        .empty-chat-icon{font-size:clamp(60px,15vw,80px);margin-bottom:15px;opacity:.3}
+        .status-section{display:none;flex-direction:column;background:var(--bg);height:100%;width:100%;position:absolute;top:0;left:0;z-index:45;transform:translateX(-100%);transition:transform .3s}
+        .status-section.active{display:flex;transform:translateX(0)}
+        .my-status{display:flex;align-items:center;gap:15px;padding:15px;background:#fff;cursor:pointer;border-bottom:1px solid #f0f2f5;touch-action:manipulation}
+        .my-status:active{background:#f0f2f5}
+        .status-avatar-container{position:relative}
+        .status-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#667781 0%,#111b21 100%);display:flex;justify-content:center;align-items:center;font-size:22px;color:#fff;flex-shrink:0;overflow:hidden;border:3px solid #fff;outline:3px solid var(--primary)}
+        @media(max-width:480px){.status-avatar{width:52px;height:52px;font-size:20px}}
+        .add-status-btn{position:absolute;bottom:0;right:0;width:22px;height:22px;background:var(--primary);border-radius:50%;display:flex;justify-content:center;align-items:center;color:#fff;font-size:14px;border:2px solid #fff}
+        .status-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:10px 0;-webkit-overflow-scrolling:touch}
+        .status-item{display:flex;align-items:center;gap:15px;padding:12px 15px;background:#fff;border-bottom:1px solid #f0f2f5;cursor:pointer;transition:all .2s;touch-action:manipulation}
+        .status-item:active{background:#f0f2f5}
+        .status-content{flex:1;min-width:0}
+        .status-name{font-weight:600;margin-bottom:3px;font-size:16px}
+        @media(max-width:480px){.status-name{font-size:15px}}
+        .status-time{font-size:12px;color:var(--text-secondary)}
+        .status-text-preview{font-size:13px;color:var(--text-secondary);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:none;justify-content:center;align-items:center;z-index:2000;backdrop-filter:blur(5px);padding:20px;-webkit-overflow-scrolling:touch}
+        .modal-overlay.active{display:flex}
+        .modal{background:#fff;padding:25px 20px;border-radius:15px;width:100%;max-width:400px;max-height:90vh;overflow-y:auto;animation:scaleIn .3s;position:relative}
+        @media(max-width:480px){.modal{padding:20px 15px;border-radius:12px;max-height:85vh;margin:10px}}
+        .modal-header{margin-bottom:20px;text-align:center}
+        .modal-title{font-size:clamp(20px,6vw,24px);font-weight:700;margin-bottom:8px;color:var(--text)}
+        .modal-desc{color:var(--text-secondary);font-size:14px;line-height:1.5}
+        .close-modal{position:absolute;top:12px;right:12px;background:none;border:none;font-size:24px;color:var(--text-secondary);cursor:pointer;width:36px;height:36px;display:flex;justify-content:center;align-items:center;border-radius:50%;transition:all .2s;touch-action:manipulation}
+        .close-modal:active{background:var(--bg);color:var(--text)}
+        .profile-modal-content{display:flex;flex-direction:column;align-items:center;gap:15px}
+        .profile-avatar-large{width:100px;height:100px;border-radius:50%;background:linear-gradient(135deg,var(--primary) 0%,var(--secondary) 100%);display:flex;justify-content:center;align-items:center;font-size:40px;font-weight:700;color:#fff;position:relative;overflow:hidden;border:4px solid #fff;box-shadow:0 4px 15px rgba(0,0,0,0.2);cursor:pointer}
+        @media(max-width:480px){.profile-avatar-large{width:90px;height:90px;font-size:36px}}
+        .profile-avatar-large img{width:100%;height:100%;object-fit:cover}
+        .profile-info{text-align:center;width:100%}
+        .profile-info h2{color:var(--text-secondary);font-size:12px;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px}
+        .profile-name{font-size:clamp(20px,6vw,24px);font-weight:600;margin-bottom:4px;word-break:break-word}
+        .profile-phone{color:var(--text-secondary);margin-bottom:12px;font-size:14px;word-break:break-word}
+        .profile-code-box{background:var(--bg);padding:12px;border-radius:10px;margin:12px 0;cursor:pointer;transition:all .2s;touch-action:manipulation}
+        .profile-code-box:active{background:#e0e0e0;transform:scale(0.98)}
+        .profile-code{font-family:monospace;font-size:clamp(16px,5vw,20px);color:var(--primary);font-weight:600;letter-spacing:2px;word-break:break-all}
+        .profile-actions{display:flex;gap:10px;margin-top:15px;width:100%}
+        @media(max-width:480px){.profile-actions{flex-direction:column;gap:8px}}
+        .btn-secondary{flex:1;padding:12px;background:var(--bg);border:2px solid var(--primary);color:var(--primary);border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;touch-action:manipulation;min-height:44px}
+        .btn-secondary:active{background:var(--primary);color:#fff;transform:scale(0.98)}
+        .btn-danger{flex:1;padding:12px;background:var(--danger);border:none;color:#fff;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;transition:all .2s;touch-action:manipulation;min-height:44px}
+        .btn-danger:active{background:#c82333;transform:scale(0.98)}
+        .empty-state{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;color:var(--text-secondary);text-align:center;padding:30px 20px}
+        @media(max-width:480px){.empty-state{padding:20px 15px}}
+        .empty-icon{font-size:clamp(48px,12vw,64px);margin-bottom:15px;opacity:.3}
+        .spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;margin:20px auto}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+        @keyframes messagePop{0%{transform:scale(0.8);opacity:0}50%{transform:scale(1.05)}100%{transform:scale(1);opacity:1}}
+        @keyframes typingBounce{0%,80%,100%{transform:scale(0)}40%{transform:scale(1)}}
+        @keyframes scaleIn{from{transform:scale(0.8);opacity:0}to{transform:scale(1);opacity:1}}
+        @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:rgba(0,0,0,0.2);border-radius:3px}
+        .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(100px);background:#333;color:#fff;padding:12px 24px;border-radius:25px;font-size:14px;z-index:3000;opacity:0;transition:all .3s;max-width:90%;text-align:center;word-wrap:break-word}
+        @media(max-width:480px){.toast{padding:10px 20px;font-size:13px;bottom:calc(20px + env(safe-area-inset-bottom))}}
+        .toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+        .toast.success{background:var(--primary)}
+        .toast.error{background:var(--danger)}
+        .online-indicator{display:inline-block;width:8px;height:8px;background:#25d366;border-radius:50%;margin-right:5px;animation:pulse 2s infinite}
+        .error-message{color:var(--danger);font-size:13px;margin-top:8px;text-align:center;display:none}
+        .error-message.show{display:block}
+        .reply-preview{background:rgba(0,0,0,0.05);padding:8px 12px;border-left:3px solid var(--primary);margin-bottom:8px;border-radius:4px;font-size:13px;display:none}
+        .reply-preview.active{display:block}
+        .reply-preview-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+        .reply-preview-name{font-weight:600;color:var(--primary);font-size:12px}
+        .reply-preview-close{background:none;border:none;cursor:pointer;font-size:16px;color:var(--text-secondary);padding:0;width:20px;height:20px;display:flex;align-items:center;justify-content:center}
+        .reply-preview-text{color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .message-image{max-width:100%;max-height:300px;border-radius:8px;cursor:pointer;transition:transform .2s}
+        .message-image:active{transform:scale(0.98)}
+        .message-file{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,0.05);padding:10px;border-radius:8px;cursor:pointer;text-decoration:none;color:inherit}
+        .file-icon{font-size:24px}
+        .file-info{flex:1;min-width:0}
+        .file-name{font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .file-size{font-size:12px;color:var(--text-secondary)}
+        .emoji-picker{position:absolute;bottom:100%;left:0;right:0;background:#fff;border-top:1px solid #e9edef;padding:10px;display:none;flex-wrap:wrap;gap:5px;max-height:200px;overflow-y:auto;box-shadow:0 -2px 10px rgba(0,0,0,0.1)}
+        .emoji-picker.active{display:flex}
+        .emoji-btn{background:none;border:none;font-size:24px;cursor:pointer;padding:5px;border-radius:5px;transition:all .2s}
+        .emoji-btn:hover{background:var(--bg);transform:scale(1.1)}
+        .media-viewer{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);display:none;justify-content:center;align-items:center;z-index:4000;padding:20px}
+        .media-viewer.active{display:flex}
+        .media-viewer img{max-width:100%;max-height:90vh;object-fit:contain}
+        .media-viewer-close{position:absolute;top:20px;right:20px;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:24px;width:44px;height:44px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center}
+        .call-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:linear-gradient(135deg,#1a1a2e 0%,#16213e 100%);display:none;flex-direction:column;justify-content:center;align-items:center;z-index:5000;color:#fff}
+        .call-overlay.active{display:flex}
+        .call-avatar{width:120px;height:120px;border-radius:50%;background:linear-gradient(135deg,var(--primary) 0%,var(--secondary) 100%);display:flex;justify-content:center;align-items:center;font-size:48px;margin-bottom:20px;animation:pulse 2s infinite}
+        .call-name{font-size:24px;font-weight:600;margin-bottom:10px}
+        .call-status{font-size:16px;opacity:.8;margin-bottom:40px}
+        .call-actions{display:flex;gap:30px}
+        .call-btn{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;font-size:24px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+        .call-btn.accept{background:#25d366;color:#fff}
+        .call-btn.decline{background:var(--danger);color:#fff}
+        .call-btn:active{transform:scale(0.95)}
+        .context-menu{position:fixed;background:#fff;border-radius:8px;box-shadow:0 2px 10px rgba(0,0,0,0.2);padding:5px 0;display:none;flex-direction:column;min-width:150px;z-index:3000}
+        .context-menu.active{display:flex}
+        .context-menu-item{padding:10px 15px;cursor:pointer;font-size:14px;display:flex;align-items:center;gap:10px;transition:background .2s}
+        .context-menu-item:hover{background:var(--bg)}
+        .context-menu-item.delete{color:var(--danger)}
+        @media(max-height:500px) and (orientation:landscape){.auth-box{padding:15px}.logo-text{margin-bottom:5px}.logo-subtitle{margin-bottom:15px}.input-group{margin-bottom:10px}.app-header{height:50px}.chat-header{height:50px}.message-input-area{padding:8px 10px}}
+        @media(min-width:768px) and (max-width:1024px){.sidebar{min-width:320px}.message{max-width:75%}}
+        @media(min-width:1200px){.sidebar{max-width:420px}.message{max-width:60%}}
+        @media(prefers-color-scheme:dark){:root{--bg:#0b141a;--chat-bg:#0b141a;--text:#d1d7db}}
+        @media(prefers-reduced-motion:reduce){*{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}}
+        @supports(padding-top:env(safe-area-inset-top)){.app-header{padding-top:max(10px,env(safe-area-inset-top))}.auth-screen{padding-top:env(safe-area-inset-top);padding-bottom:env(safe-area-inset-bottom)}}
+        .chat-list,.chat-messages,.status-list{overscroll-behavior:contain}
+        @media(pointer:coarse){.chat-item,.status-item,.my-status,.tab,.icon-btn,.send-btn,.btn-primary,.btn-secondary,.btn-danger,.input-action-btn{min-height:44px;min-width:44px}.close-modal{min-width:44px;min-height:44px}}
+    </style>
+</head>
+<body>
+    <!-- AUTH SCREENS -->
+    <div class="auth-screen" id="loginScreen">
+        <div class="auth-box">
+            <div style="text-align:center;margin-bottom:25px">
+                <div style="font-size:clamp(48px,12vw,64px);margin-bottom:8px">💬</div>
+                <div style="color:var(--primary);font-size:clamp(28px,8vw,36px);font-weight:700">Telesap Pro</div>
+                <div style="color:var(--text-secondary);font-size:clamp(13px,4vw,16px)">Secure Real-time Messaging</div>
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="loginEmail" placeholder="your@email.com" autocomplete="email">
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px">
+                <label style="display:flex;align-items:center;gap:5px;font-size:13px;color:var(--text-secondary);cursor:pointer">
+                    <input type="checkbox" id="rememberMe" style="width:auto"> Remember me
+                </label>
+                <span style="font-size:13px;color:var(--primary);cursor:pointer" onclick="showForgotPassword()">Forgot password?</span>
+            </div>
+            <div class="error-message" id="loginError"></div>
+            <button class="btn-primary" id="loginBtn" onclick="handleLogin()">
+                <span id="loginText">Log In</span>
+            </button>
+            <div style="text-align:center;margin:15px 0;color:var(--text-secondary);font-size:13px">Or continue with</div>
+            <div style="display:flex;gap:10px;justify-content:center">
+                <button class="icon-btn" style="background:#db4437;color:#fff;width:44px;height:44px" onclick="signInWithGoogle()">G</button>
+                <button class="icon-btn" style="background:#1877f2;color:#fff;width:44px;height:44px" onclick="signInWithFacebook()">f</button>
+                <button class="icon-btn" style="background:#000;color:#fff;width:44px;height:44px" onclick="signInWithApple()">🍎</button>
+            </div>
+            <div class="toggle-auth" onclick="showRegister()" style="color:var(--text-secondary);margin-top:20px">
+                New to Telesap? <strong style="color:var(--primary)">Create account</strong>
+            </div>
+        </div>
+    </div>
+
+    <div class="auth-screen hidden" id="registerScreen">
+        <div class="auth-box">
+            <div style="text-align:center;margin-bottom:25px">
+                <div style="font-size:clamp(40px,10vw,48px);margin-bottom:8px">🚀</div>
+                <div style="color:var(--primary);font-size:clamp(28px,8vw,36px);font-weight:700">Join Telesap</div>
+            </div>
+            <div class="input-group">
+                <label>Full Name</label>
+                <input type="text" id="regName" placeholder="John Doe" maxlength="50" autocomplete="name">
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="regEmail" placeholder="your@email.com" autocomplete="email">
+            </div>
+            <div class="input-group">
+                <label>Your Telesap Code</label>
+                <input type="text" id="regCode" placeholder="Auto-generated" readonly style="background:var(--bg);font-family:monospace;letter-spacing:2px">
+                <small style="color:var(--text-secondary);display:block;margin-top:5px;font-size:12px">Share this code with friends</small>
+            </div>
+            <div class="input-group">
+                <label>Password</label>
+                <input type="password" id="regPassword" placeholder="Create password (min 6 chars)" autocomplete="new-password" oninput="checkPasswordStrength(this.value)">
+                <div id="passwordStrength" style="height:4px;background:#e0e0e0;border-radius:2px;margin-top:5px;overflow:hidden">
+                    <div id="passwordStrengthBar" style="height:100%;width:0;background:var(--danger);transition:all .3s"></div>
+                </div>
+            </div>
+            <div class="input-group">
+                <label>Confirm Password</label>
+                <input type="password" id="regConfirmPassword" placeholder="Confirm your password" autocomplete="new-password">
+            </div>
+            <div class="error-message" id="regError"></div>
+            <button class="btn-primary" id="regBtn" onclick="handleRegister()">
+                <span id="regText">Create Account</span>
+            </button>
+            <div class="toggle-auth" onclick="showLogin()" style="color:var(--text-secondary)">
+                Already have an account? <strong style="color:var(--primary)">Log in</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORGOT PASSWORD MODAL -->
+    <div class="modal-overlay" id="forgotPasswordModal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeForgotPassword()">×</button>
+            <div class="modal-header">
+                <div class="modal-title">Reset Password</div>
+                <div class="modal-desc">Enter your email to receive a reset link</div>
+            </div>
+            <div class="input-group">
+                <label>Email Address</label>
+                <input type="email" id="resetEmail" placeholder="your@email.com">
+            </div>
+            <button class="btn-primary" onclick="sendResetEmail()">Send Reset Link</button>
+        </div>
+    </div>
+
+    <!-- MAIN APP -->
+    <div class="main-app" id="mainApp">
+        <!-- SIDEBAR -->
+        <div class="sidebar" id="sidebar">
+            <div class="app-header">
+                <div class="header-content">
+                    <button class="icon-btn menu-toggle" onclick="toggleSidebar()" style="display:none">☰</button>
+                    <div class="user-avatar" id="headerAvatar" onclick="toggleProfile()">
+                        <span id="headerInitial">?</span>
+                        <img id="headerAvatarImg" style="display:none">
+                    </div>
+                    <div style="font-weight:600;font-size:clamp(14px,4vw,16px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="headerUserName">User</div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="toggleSearch()" title="Search">🔍</button>
+                    <button class="icon-btn" onclick="showAddContact()" title="Add Contact">➕</button>
+                    <button class="icon-btn" onclick="showStatusSection()" title="Status">📷</button>
+                    <button class="icon-btn" onclick="showSettings()" title="Settings">⚙️</button>
+                    <button class="icon-btn" onclick="toggleProfile()" title="Profile">👤</button>
+                </div>
+            </div>
+
+            <div class="sidebar-header" id="searchBar" style="display:none">
+                <div class="search-box">
+                    <span>🔍</span>
+                    <input type="text" id="globalSearch" placeholder="Search chats, messages..." onkeyup="handleGlobalSearch(this.value)">
+                    <button onclick="toggleSearch()" style="background:none;border:none;cursor:pointer;font-size:18px">×</button>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('chats')" id="tabChats">Chats</div>
+                <div class="tab" onclick="switchTab('status')" id="tabStatus">Status</div>
+                <div class="tab" onclick="switchTab('calls')" id="tabCalls">Calls</div>
+            </div>
+
+            <div class="chat-list" id="chatList">
+                <div class="empty-state">
+                    <div class="empty-icon">💬</div>
+                    <div>No chats yet</div>
+                    <div style="font-size:clamp(12px,3.5vw,14px);margin-top:8px">Add contacts using their Telesap code</div>
+                    <button class="btn-primary" style="margin-top:20px;width:auto;padding:12px 24px" onclick="showAddContact()">Add First Contact</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHAT AREA -->
+        <div class="chat-area empty" id="chatArea">
+            <div class="empty-chat-state" id="emptyChatState">
+                <div class="empty-chat-icon">💬</div>
+                <h2>Telesap Pro</h2>
+                <p>Select a chat to start messaging</p>
+                <div style="margin-top:30px;display:flex;gap:15px;flex-wrap:wrap;justify-content:center">
+                    <div style="text-align:center;padding:15px;background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);min-width:80px">
+                        <div style="font-size:24px;margin-bottom:5px">🔒</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">End-to-end<br>encrypted</div>
+                    </div>
+                    <div style="text-align:center;padding:15px;background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);min-width:80px">
+                        <div style="font-size:24px;margin-bottom:5px">⚡</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">Real-time<br>sync</div>
+                    </div>
+                    <div style="text-align:center;padding:15px;background:#fff;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.1);min-width:80px">
+                        <div style="font-size:24px;margin-bottom:5px">📱</div>
+                        <div style="font-size:12px;color:var(--text-secondary)">Multi-device<br>support</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-header" id="chatHeader" style="display:none">
+                <div style="display:flex;align-items:center;flex:1;min-width:0">
+                    <button class="header-back" onclick="closeChatArea()">←</button>
+                    <div class="chat-header-info" onclick="showContactInfo()">
+                        <div class="chat-avatar" id="chatAvatar">
+                            <span id="chatInitial">?</span>
+                            <img id="chatAvatarImg" style="display:none">
+                        </div>
+                        <div class="chat-user-info">
+                            <h3 id="chatName">Select a chat</h3>
+                            <p id="chatStatus">
+                                <span class="online-indicator" style="display:none"></span>
+                                <span id="statusText">Tap a contact to start chatting</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="startVoiceCall()" title="Voice Call">📞</button>
+                    <button class="icon-btn" onclick="startVideoCall()" title="Video Call">📹</button>
+                    <button class="icon-btn" onclick="toggleSearchMessages()" title="Search">🔍</button>
+                    <button class="icon-btn" onclick="showChatMenu()" title="Menu">⋮</button>
+                </div>
+            </div>
+
+            <div class="search-messages" id="searchMessages" style="display:none;position:absolute;top:60px;left:0;right:0;background:#fff;padding:10px 15px;border-bottom:1px solid #e9edef;align-items:center;gap:10px;z-index:50">
+                <input type="text" id="messageSearchInput" placeholder="Search in conversation..." onkeyup="searchInMessages(this.value)" style="flex:1;padding:8px 12px;border:1px solid #e0e0e0;border-radius:20px;font-size:14px;outline:none">
+                <button onclick="toggleSearchMessages()" style="background:none;border:none;cursor:pointer;font-size:20px">×</button>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages" style="display:none"></div>
+            
+            <div class="typing-indicator" id="typingIndicator">
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            </div>
+
+            <div class="emoji-picker" id="emojiPicker"></div>
+            
+            <div class="message-input-area" id="messageInputArea" style="display:none">
+                <div class="input-actions">
+                    <button class="input-action-btn" onclick="toggleEmojiPicker()" title="Emoji">😊</button>
+                    <button class="input-action-btn" onclick="attachFile()" title="Attach">📎</button>
+                    <button class="input-action-btn" onclick="openCamera()" title="Camera">📷</button>
+                </div>
+                
+                <div style="flex:1;position:relative">
+                    <div class="reply-preview" id="replyPreview">
+                        <div class="reply-preview-header">
+                            <span class="reply-preview-name" id="replyPreviewName">Replying to</span>
+                            <button class="reply-preview-close" onclick="cancelReply()">×</button>
+                        </div>
+                        <div class="reply-preview-text" id="replyPreviewText">Message text</div>
+                    </div>
+                    <textarea class="message-input" id="messageInput" placeholder="Type a message" rows="1" onkeydown="handleKeyDown(event)" oninput="autoResize(this);handleTyping()"></textarea>
+                </div>
+                
+                <button class="send-btn" id="sendBtn" onclick="sendMessage()" style="display:none">➤</button>
+                <button class="voice-btn" id="voiceBtn" onmousedown="startRecording()" onmouseup="stopRecording()" ontouchstart="startRecording()" ontouchend="stopRecording()">🎤</button>
+            </div>
+        </div>
+
+        <!-- STATUS SECTION -->
+        <div class="status-section" id="statusSection">
+            <div class="app-header">
+                <div class="header-content">
+                    <button class="icon-btn" onclick="hideStatusSection()">←</button>
+                    <div style="font-weight:600">Status</div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="showStatusModal()">➕</button>
+                </div>
+            </div>
+            
+            <div class="my-status" onclick="showStatusModal()">
+                <div class="status-avatar-container">
+                    <div class="status-avatar" id="myStatusAvatar">
+                        <span id="myStatusInitial">?</span>
+                        <img id="myStatusImg" style="display:none">
+                    </div>
+                    <div class="add-status-btn">+</div>
+                </div>
+                <div class="status-content">
+                    <div class="status-name">My Status</div>
+                    <div class="status-time" id="myStatusTime">Tap to add status update</div>
+                </div>
+            </div>
+            
+            <div style="padding:10px 15px;background:var(--bg);font-size:13px;color:var(--text-secondary);font-weight:600">Recent updates</div>
+            
+            <div class="status-list" id="statusList">
+                <div class="empty-state">
+                    <div class="empty-icon">📷</div>
+                    <div>No status updates</div>
+                    <div style="font-size:clamp(12px,3.5vw,14px)">Be the first to share!</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CALLS SECTION -->
+        <div class="status-section" id="callsSection">
+            <div class="app-header">
+                <div class="header-content">
+                    <button class="icon-btn" onclick="hideCallsSection()">←</button>
+                    <div style="font-weight:600">Calls</div>
+                </div>
+                <div class="header-actions">
+                    <button class="icon-btn" onclick="showAddContact()">📞</button>
+                </div>
+            </div>
+            
+            <div class="status-list" id="callsList">
+                <div class="empty-state">
+                    <div class="empty-icon">📞</div>
+                    <div>No calls yet</div>
+                    <div style="font-size:clamp(12px,3.5vw,14px)">Start calling your contacts</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALS -->
+    <div class="modal-overlay" id="addContactModal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeAddContact()">×</button>
+            <div class="modal-header">
+                <div class="modal-title">Add Contact</div>
+                <div class="modal-desc">Enter their unique Telesap code to start chatting</div>
+            </div>
+            <div class="input-group">
+                <label>Telesap Code</label>
+                <input type="text" id="contactCode" placeholder="e.g., TELE-A1B2C3" maxlength="20" style="text-transform:uppercase" oninput="formatCodeInput(this)">
+            </div>
+            <button class="btn-primary" onclick="addContact()">Add Contact</button>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="profileModal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeProfile()">×</button>
+            <div class="profile-modal-content">
+                <div class="profile-avatar-large" id="profileAvatar" onclick="changeAvatar()">
+                    <span id="profileInitial">?</span>
+                    <img id="profileAvatarImg" style="display:none">
+                    <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.6);color:#fff;padding:8px;font-size:12px;text-align:center;opacity:0;transition:opacity .2s">📷 Change</div>
+                </div>
+                <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(event)">
+                
+                <div class="profile-info">
+                    <h2>Your Name</h2>
+                    <div class="profile-name" id="profileName" onclick="editName()" style="cursor:pointer">User</div>
+                    <input type="text" id="editNameInput" style="display:none;width:100%;padding:8px;border:2px solid var(--primary);border-radius:8px;font-size:16px;text-align:center" onblur="saveName()" onkeydown="if(event.key==='Enter')saveName()">
+                    
+                    <h2 style="margin-top:15px">Phone/Email</h2>
+                    <div class="profile-phone" id="profileEmail">user@email.com</div>
+                    
+                    <h2>Your Telesap Code</h2>
+                    <div class="profile-code-box" onclick="copyCode()">
+                        <div class="profile-code" id="profileCode">TELE-XXXXXX</div>
+                    </div>
+                    <small style="color:var(--text-secondary)">Click to copy • Share with friends</small>
+
+                    <h2 style="margin-top:15px">Bio</h2>
+                    <div id="profileBio" onclick="editBio()" style="cursor:pointer;color:var(--text-secondary);font-size:14px;padding:8px;border-radius:8px">Tap to add bio...</div>
+                    <input type="text" id="editBioInput" style="display:none;width:100%;padding:8px;border:2px solid var(--primary);border-radius:8px;font-size:14px;text-align:center" placeholder="What's on your mind?" maxlength="100" onblur="saveBio()" onkeydown="if(event.key==='Enter')saveBio()">
+                </div>
+                
+                <div class="profile-actions">
+                    <button class="btn-secondary" onclick="closeProfile()">Close</button>
+                    <button class="btn-danger" onclick="logout()">Logout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal" style="max-width:450px">
+            <button class="close-modal" onclick="closeSettings()">×</button>
+            <div class="modal-header">
+                <div class="modal-title">⚙️ Settings</div>
+            </div>
+            
+            <div style="margin-bottom:20px;border-bottom:1px solid #e9edef;padding-bottom:15px">
+                <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Appearance</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+                    <span style="font-size:15px;color:var(--text)">Dark Mode</span>
+                    <div class="toggle-switch" id="darkModeToggle" onclick="toggleDarkMode()" style="position:relative;width:50px;height:28px;background:#ccc;border-radius:14px;cursor:pointer;transition:background .3s">
+                        <div style="position:absolute;top:2px;left:2px;width:24px;height:24px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 2px 4px rgba(0,0,0,0.2)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;border-bottom:1px solid #e9edef;padding-bottom:15px">
+                <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Notifications</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+                    <span style="font-size:15px;color:var(--text)">Message Notifications</span>
+                    <div class="toggle-switch active" id="notifToggle" onclick="toggleSetting(this,'notifications')" style="position:relative;width:50px;height:28px;background:var(--primary);border-radius:14px;cursor:pointer;transition:background .3s">
+                        <div style="position:absolute;top:2px;left:2px;width:24px;height:24px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 2px 4px rgba(0,0,0,0.2);transform:translateX(22px)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-bottom:20px;border-bottom:1px solid #e9edef;padding-bottom:15px">
+                <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">Privacy</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0">
+                    <span style="font-size:15px;color:var(--text)">Read Receipts</span>
+                    <div class="toggle-switch active" id="readReceiptToggle" onclick="toggleSetting(this,'readReceipts')" style="position:relative;width:50px;height:28px;background:var(--primary);border-radius:14px;cursor:pointer;transition:background .3s">
+                        <div style="position:absolute;top:2px;left:2px;width:24px;height:24px;background:#fff;border-radius:50%;transition:transform .3s;box-shadow:0 2px 4px rgba(0,0,0,0.2);transform:translateX(22px)"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div>
+                <div style="font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:1px;margin-bottom:10px">About</div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer" onclick="clearCache()">
+                    <span style="font-size:15px;color:var(--text)">Clear Cache</span>
+                    <span style="color:var(--text-secondary);font-size:13px" id="cacheSize">Calculating...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="statusModal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeStatusModal()">×</button>
+            <div class="modal-header">
+                <div class="modal-title">Update Status</div>
+                <div class="modal-desc">Share what you're up to</div>
+            </div>
+            <div class="input-group">
+                <label>What's on your mind?</label>
+                <input type="text" id="statusTextInput" placeholder="Type your status..." maxlength="200">
+            </div>
+            <div style="display:flex;gap:10px;margin-top:20px">
+                <button class="btn-secondary" onclick="closeStatusModal()" style="flex:1">Cancel</button>
+                <button class="btn-primary" onclick="postStatus()" style="flex:1">Post Status</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="contactInfoModal">
+        <div class="modal">
+            <button class="close-modal" onclick="closeContactInfo()">×</button>
+            <div class="profile-modal-content">
+                <div class="profile-avatar-large" id="contactInfoAvatar">
+                    <span id="contactInfoInitial">?</span>
+                    <img id="contactInfoImg" style="display:none">
+                </div>
+                <div class="profile-info">
+                    <div class="profile-name" id="contactInfoName">Contact Name</div>
+                    <div class="profile-phone" id="contactInfoCode">TELE-XXXXXX</div>
+                    <div id="contactInfoBio" style="margin-top:10px;padding:10px;background:var(--bg);border-radius:8px;font-size:14px;color:var(--text-secondary)">No bio available</div>
+                </div>
+                
+                <div style="display:flex;gap:15px;margin:15px 0">
+                    <button class="icon-btn" onclick="startVoiceCall()" style="background:var(--primary);color:#fff;width:50px;height:50px;font-size:20px">📞</button>
+                    <button class="icon-btn" onclick="startVideoCall()" style="background:var(--primary);color:#fff;width:50px;height:50px;font-size:20px">📹</button>
+                    <button class="icon-btn" onclick="blockContact()" style="background:var(--danger);color:#fff;width:50px;height:50px;font-size:20px">🚫</button>
+                </div>
+
+                <div class="profile-actions">
+                    <button class="btn-secondary" onclick="closeContactInfo()">Close</button>
+                    <button class="btn-danger" onclick="deleteChat()">Delete Chat</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- OVERLAYS -->
+    <div class="media-viewer" id="mediaViewer" onclick="closeMediaViewer()">
+        <button class="media-viewer-close" onclick="closeMediaViewer()">×</button>
+        <img id="mediaViewerImg" src="" alt="Media">
+    </div>
+
+    <div class="call-overlay" id="callOverlay">
+        <div class="call-avatar" id="callAvatar"><span id="callInitial">?</span></div>
+        <div class="call-name" id="callName">Contact Name</div>
+        <div class="call-status" id="callStatus">Calling...</div>
+        <div class="call-actions">
+            <button class="call-btn decline" onclick="endCall()">📞</button>
+            <button class="call-btn accept" id="acceptCallBtn" onclick="acceptCall()" style="display:none">📞</button>
+        </div>
+    </div>
+
+    <div class="context-menu" id="contextMenu"></div>
+
+    <div class="toast" id="toast"></div>
+
+    <!-- HIDDEN INPUTS -->
+    <input type="file" id="fileInput" style="display:none" onchange="handleFileSelect(event)" multiple>
+    <input type="file" id="cameraInput" style="display:none" accept="image/*" capture="camera" onchange="handleCameraCapture(event)">
+
+    <script>
+        // ==========================================
+        // TELESAP PRO - FIXED FOR CROSS-DEVICE MESSAGING
+        // ==========================================
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD3vLWzb8GgUudoK7r4CNFgoFVz4lf5gMQ",
+            authDomain: "telesap-d243b.firebaseapp.com",
+            databaseURL: "https://telesap-d243b-default-rtdb.firebaseio.com",
+            projectId: "telesap-d243b",
+            storageBucket: "telesap-d243b.firebasestorage.app",
+            messagingSenderId: "995112210477",
+            appId: "1:995112210477:web:e1edd1435b97e1b57a28a4"
+        };
+
+        let app, auth, database, storage;
+        let currentUser = null;
+        let currentChat = null;
+        let messagesRef = null;
+        let typingRef = null;
+        let contactsListeners = [];
+        let replyToMessageId = null;
+        let selectedMessageId = null;
+        let recording = false;
+        let mediaRecorder = null;
+        let audioChunks = [];
+
+        // Initialize Firebase
+        try {
+            app = firebase.initializeApp(firebaseConfig);
+            auth = firebase.auth();
+            database = firebase.database();
+            storage = firebase.storage();
+            console.log('✅ Firebase initialized');
+        } catch (error) {
+            console.error('❌ Firebase init failed:', error);
+        }
+
+        // ==========================================
+        // UTILITY FUNCTIONS
+        // ==========================================
+
+        function generateCode() {
+            return 'TELE-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        function showToast(message, type = 'default') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast ' + type;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        function showError(elementId, message) {
+            const el = document.getElementById(elementId);
+            el.textContent = message;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 5000);
+        }
+
+        function getInitials(name) {
+            if (!name) return '?';
+            return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+        }
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = Math.floor((now - date) / 1000 / 60);
+            
+            if (diff < 1) return 'Just now';
+            if (diff < 60) return `${diff}m ago`;
+            if (diff < 1440) return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            return date.toLocaleDateString([], {month: 'short', day: 'numeric'});
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function formatCodeInput(input) {
+            input.value = input.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+        }
+
+        function checkPasswordStrength(password) {
+            const bar = document.getElementById('passwordStrengthBar');
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.match(/[0-9]/)) strength++;
+            if (password.match(/[^A-Za-z0-9]/)) strength++;
+            const colors = ['#dc3545', '#ffc107', '#17a2b8', '#28a745'];
+            bar.style.width = (strength * 33) + '%';
+            bar.style.background = colors[strength] || '#dc3545';
+        }
+
+        // ==========================================
+        // AUTHENTICATION
+        // ==========================================
+
+        function showLogin() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            document.getElementById('loginError').classList.remove('show');
+        }
+
+        function showRegister() {
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.remove('hidden');
+            document.getElementById('regCode').value = generateCode();
+            document.getElementById('regError').classList.remove('show');
+        }
+
+        function showForgotPassword() {
+            document.getElementById('forgotPasswordModal').classList.add('active');
+        }
+
+        function closeForgotPassword() {
+            document.getElementById('forgotPasswordModal').classList.remove('active');
+        }
+
+        async function sendResetEmail() {
+            const email = document.getElementById('resetEmail').value.trim();
+            if (!email) return showToast('Please enter your email', 'error');
+            try {
+                await auth.sendPasswordResetEmail(email);
+                showToast('Reset link sent!', 'success');
+                closeForgotPassword();
+            } catch (error) {
+                showToast('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            const btn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('loginText');
+
+            if (!email || !password) {
+                showError('loginError', 'Please fill in all fields');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = 'Logging in...';
+
+            try {
+                const persistence = rememberMe ? firebase.auth.Auth.Persistence.LOCAL : firebase.auth.Auth.Persistence.SESSION;
+                await auth.setPersistence(persistence);
+                const userCredential = await auth.signInWithEmailAndPassword(email, password);
+                const userData = await loadUserData(userCredential.user.uid);
+                if (!userData) throw new Error('User data not found');
+                currentUser = userData;
+                localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                showMainApp();
+                showToast(`Welcome back, ${currentUser.name}!`, 'success');
+            } catch (error) {
+                let errorMessage = 'Login failed';
+                if (error.code === 'auth/user-not-found') errorMessage = 'User not found';
+                else if (error.code === 'auth/wrong-password') errorMessage = 'Wrong password';
+                else if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email';
+                else if (error.message) errorMessage = error.message;
+                showError('loginError', errorMessage);
+                btn.disabled = false;
+                btnText.textContent = 'Log In';
+            }
+        }
+
+        async function handleRegister() {
+            const name = document.getElementById('regName').value.trim();
+            const email = document.getElementById('regEmail').value.trim();
+            const code = document.getElementById('regCode').value.trim().toUpperCase();
+            const password = document.getElementById('regPassword').value;
+            const confirmPassword = document.getElementById('regConfirmPassword').value;
+            const btn = document.getElementById('regBtn');
+            const btnText = document.getElementById('regText');
+
+            if (!name || !email || !code || !password) {
+                showError('regError', 'Please fill in all fields');
+                return;
+            }
+            if (password !== confirmPassword) {
+                showError('regError', 'Passwords do not match');
+                return;
+            }
+            if (password.length < 6) {
+                showError('regError', 'Password must be at least 6 characters');
+                return;
+            }
+
+            btn.disabled = true;
+            btnText.textContent = 'Creating account...';
+
+            try {
+                const userData = {
+                    name, email, code, bio: '', avatar: null,
+                    createdAt: new Date().toISOString(),
+                    contacts: [], blocked: [], status: null,
+                    lastSeen: new Date().toISOString()
+                };
+                const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+                userData.uid = userCredential.user.uid;
+                await database.ref('users/' + userData.uid).set(userData);
+                await database.ref('codes/' + code).set(userData.uid);
+                await database.ref('presence/' + userData.uid).set({ state: 'online', lastChanged: firebase.database.ServerValue.TIMESTAMP });
+                currentUser = userData;
+                localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                showMainApp();
+                showToast(`Welcome, ${name}! Your code: ${code}`, 'success');
+            } catch (error) {
+                let errorMessage = 'Registration failed';
+                if (error.code === 'auth/email-already-in-use') errorMessage = 'Email already registered';
+                else if (error.code === 'auth/invalid-email') errorMessage = 'Invalid email';
+                else if (error.code === 'auth/weak-password') errorMessage = 'Password too weak';
+                else if (error.message) errorMessage = error.message;
+                showError('regError', errorMessage);
+                btn.disabled = false;
+                btnText.textContent = 'Create Account';
+            }
+        }
+
+        async function signInWithGoogle() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                await handleSocialLogin(result.user, 'Google');
+            } catch (error) {
+                showToast('Google sign-in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function signInWithFacebook() {
+            const provider = new firebase.auth.FacebookAuthProvider();
+            try {
+                const result = await auth.signInWithPopup(provider);
+                await handleSocialLogin(result.user, 'Facebook');
+            } catch (error) {
+                showToast('Facebook sign-in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function signInWithApple() {
+            const provider = new firebase.auth.OAuthProvider('apple.com');
+            try {
+                const result = await auth.signInWithPopup(provider);
+                await handleSocialLogin(result.user, 'Apple');
+            } catch (error) {
+                showToast('Apple sign-in failed: ' + error.message, 'error');
+            }
+        }
+
+        async function handleSocialLogin(user, provider) {
+            const userRef = database.ref('users/' + user.uid);
+            const snapshot = await userRef.once('value');
+            if (!snapshot.exists()) {
+                const newCode = generateCode();
+                const userData = {
+                    name: user.displayName || 'User', email: user.email, code: newCode,
+                    bio: '', avatar: user.photoURL, createdAt: new Date().toISOString(),
+                    contacts: [], blocked: [], status: null, lastSeen: new Date().toISOString(),
+                    uid: user.uid
+                };
+                await userRef.set(userData);
+                await database.ref('codes/' + newCode).set(user.uid);
+                currentUser = userData;
+            } else {
+                currentUser = snapshot.val();
+                currentUser.uid = user.uid;
+            }
+            localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+            showMainApp();
+            showToast(`Welcome via ${provider}!`, 'success');
+        }
+
+        async function loadUserData(uid) {
+            try {
+                const snapshot = await database.ref('users/' + uid).once('value');
+                const data = snapshot.val();
+                if (data) data.uid = uid;
+                return data;
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                return null;
+            }
+        }
+
+        function logout() {
+            if (currentUser) {
+                database.ref('presence/' + currentUser.uid).set({ state: 'offline', lastChanged: firebase.database.ServerValue.TIMESTAMP });
+            }
+            if (messagesRef) messagesRef.off();
+            if (typingRef) typingRef.off();
+            contactsListeners.forEach(ref => ref.off());
+            contactsListeners = [];
+            auth.signOut();
+            currentUser = null;
+            currentChat = null;
+            localStorage.removeItem('telesap_currentUser');
+            document.getElementById('mainApp').classList.remove('active');
+            closeAllModals();
+            showLogin();
+            showToast('Logged out successfully', 'success');
+        }
+
+        // ==========================================
+        // MAIN APP
+        // ==========================================
+
+        function showMainApp() {
+            document.getElementById('mainApp').classList.add('active');
+            document.getElementById('loginScreen').classList.add('hidden');
+            document.getElementById('registerScreen').classList.add('hidden');
+            updateHeaderUI();
+            setupPresence();
+            loadContacts();
+            loadStatuses();
+            calculateCacheSize();
+        }
+
+        function updateHeaderUI() {
+            document.getElementById('headerUserName').textContent = currentUser.name;
+            document.getElementById('headerInitial').textContent = getInitials(currentUser.name);
+            if (currentUser.avatar) {
+                document.getElementById('headerAvatarImg').src = currentUser.avatar;
+                document.getElementById('headerAvatarImg').style.display = 'block';
+                document.getElementById('headerInitial').style.display = 'none';
+            }
+            document.getElementById('profileName').textContent = currentUser.name;
+            document.getElementById('profileEmail').textContent = currentUser.email;
+            document.getElementById('profileCode').textContent = currentUser.code;
+            document.getElementById('myStatusInitial').textContent = getInitials(currentUser.name);
+            if (currentUser.bio) {
+                document.getElementById('profileBio').textContent = currentUser.bio;
+                document.getElementById('profileBio').style.color = 'var(--text)';
+            }
+            if (currentUser.avatar) {
+                document.getElementById('profileAvatarImg').src = currentUser.avatar;
+                document.getElementById('profileAvatarImg').style.display = 'block';
+                document.getElementById('profileInitial').style.display = 'none';
+                document.getElementById('myStatusImg').src = currentUser.avatar;
+                document.getElementById('myStatusImg').style.display = 'block';
+                document.getElementById('myStatusInitial').style.display = 'none';
+            }
+        }
+
+        function setupPresence() {
+            if (!database || !currentUser) return;
+            const userStatusRef = database.ref('presence/' + currentUser.uid);
+            const connectedRef = database.ref('.info/connected');
+            connectedRef.on('value', (snap) => {
+                if (snap.val() === true) {
+                    userStatusRef.set({ state: 'online', lastChanged: firebase.database.ServerValue.TIMESTAMP });
+                    userStatusRef.onDisconnect().set({ state: 'offline', lastChanged: firebase.database.ServerValue.TIMESTAMP });
+                }
+            });
+        }
+
+        function closeAllModals() {
+            document.querySelectorAll('.modal-overlay').forEach(modal => modal.classList.remove('active'));
+            document.getElementById('emojiPicker').classList.remove('active');
+            document.getElementById('contextMenu').classList.remove('active');
+        }
+
+        // ==========================================
+        // NAVIGATION
+        // ==========================================
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            if (tab === 'chats') {
+                document.getElementById('tabChats').classList.add('active');
+                document.getElementById('statusSection').classList.remove('active');
+                document.getElementById('callsSection').classList.remove('active');
+            } else if (tab === 'status') {
+                document.getElementById('tabStatus').classList.add('active');
+                showStatusSection();
+            } else if (tab === 'calls') {
+                document.getElementById('tabCalls').classList.add('active');
+                showCallsSection();
+            }
+        }
+
+        function toggleSidebar() {
+            document.getElementById('sidebar').classList.toggle('hidden-mobile');
+        }
+
+        function toggleSearch() {
+            const searchBar = document.getElementById('searchBar');
+            searchBar.style.display = searchBar.style.display === 'none' ? 'block' : 'none';
+            if (searchBar.style.display === 'block') document.getElementById('globalSearch').focus();
+        }
+
+        function handleGlobalSearch(query) {
+            const lowerQuery = query.toLowerCase();
+            document.querySelectorAll('.chat-item').forEach(item => {
+                const name = item.querySelector('.chat-name').textContent.toLowerCase();
+                const preview = item.querySelector('.chat-preview').textContent.toLowerCase();
+                item.style.display = (name.includes(lowerQuery) || preview.includes(lowerQuery)) ? 'flex' : 'none';
+            });
+        }
+
+        // ==========================================
+        // PROFILE
+        // ==========================================
+
+        function toggleProfile() {
+            document.getElementById('profileModal').classList.add('active');
+        }
+
+        function closeProfile() {
+            document.getElementById('profileModal').classList.remove('active');
+        }
+
+        function changeAvatar() {
+            document.getElementById('avatarInput').click();
+        }
+
+        async function handleAvatarChange(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image too large. Max 5MB.', 'error');
+                return;
+            }
+            try {
+                showToast('Uploading avatar...');
+                const storageRef = storage.ref('avatars/' + currentUser.uid);
+                await storageRef.put(file);
+                const url = await storageRef.getDownloadURL();
+                await database.ref('users/' + currentUser.uid + '/avatar').set(url);
+                currentUser.avatar = url;
+                localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                updateHeaderUI();
+                showToast('Avatar updated!', 'success');
+            } catch (error) {
+                showToast('Upload failed: ' + error.message, 'error');
+            }
+        }
+
+        function editName() {
+            document.getElementById('profileName').style.display = 'none';
+            const input = document.getElementById('editNameInput');
+            input.value = currentUser.name;
+            input.style.display = 'block';
+            input.focus();
+        }
+
+        async function saveName() {
+            const input = document.getElementById('editNameInput');
+            const newName = input.value.trim();
+            if (newName && newName !== currentUser.name) {
+                await database.ref('users/' + currentUser.uid + '/name').set(newName);
+                currentUser.name = newName;
+                localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                updateHeaderUI();
+                showToast('Name updated!', 'success');
+            }
+            input.style.display = 'none';
+            document.getElementById('profileName').style.display = 'block';
+        }
+
+        function editBio() {
+            document.getElementById('profileBio').style.display = 'none';
+            const input = document.getElementById('editBioInput');
+            input.value = currentUser.bio || '';
+            input.style.display = 'block';
+            input.focus();
+        }
+
+        async function saveBio() {
+            const input = document.getElementById('editBioInput');
+            const newBio = input.value.trim();
+            await database.ref('users/' + currentUser.uid + '/bio').set(newBio);
+            currentUser.bio = newBio;
+            localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+            const bioEl = document.getElementById('profileBio');
+            bioEl.textContent = newBio || 'Tap to add bio...';
+            bioEl.style.color = newBio ? 'var(--text)' : 'var(--text-secondary)';
+            bioEl.style.display = 'block';
+            input.style.display = 'none';
+            showToast('Bio updated!', 'success');
+        }
+
+        function copyCode() {
+            const code = document.getElementById('profileCode').textContent;
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(code).then(() => showToast('Code copied!', 'success')).catch(() => fallbackCopy(code));
+            } else {
+                fallbackCopy(code);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const input = document.createElement('input');
+            input.value = text;
+            input.style.position = 'fixed';
+            input.style.left = '-9999px';
+            document.body.appendChild(input);
+            input.select();
+            try {
+                document.execCommand('copy');
+                showToast('Code copied!', 'success');
+            } catch (err) {
+                showToast('Failed to copy', 'error');
+            }
+            document.body.removeChild(input);
+        }
+
+        // ==========================================
+        // SETTINGS
+        // ==========================================
+
+        function showSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function toggleDarkMode() {
+            const toggle = document.getElementById('darkModeToggle');
+            toggle.classList.toggle('active');
+            const isDark = toggle.classList.contains('active');
+            if (isDark) {
+                document.documentElement.style.setProperty('--bg', '#0b141a');
+                document.documentElement.style.setProperty('--chat-bg', '#0b141a');
+                document.documentElement.style.setProperty('--text', '#d1d7db');
+                document.body.style.background = '#0b141a';
+            } else {
+                document.documentElement.style.setProperty('--bg', '#efeae2');
+                document.documentElement.style.setProperty('--chat-bg', '#e5ddd5');
+                document.documentElement.style.setProperty('--text', '#111b21');
+                document.body.style.background = '#efeae2';
+            }
+        }
+
+        function toggleSetting(element, settingName) {
+            element.classList.toggle('active');
+        }
+
+        function calculateCacheSize() {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length * 2;
+                }
+            }
+            document.getElementById('cacheSize').textContent = (total / 1024 / 1024).toFixed(2) + ' MB';
+        }
+
+        function clearCache() {
+            if (confirm('Clear all cached data?')) {
+                localStorage.removeItem('telesap_currentUser');
+                location.reload();
+            }
+        }
+
+        // ==========================================
+        // CONTACTS & CHATS - FIXED VERSION
+        // ==========================================
+
+        async function loadContacts() {
+            const chatList = document.getElementById('chatList');
+            if (!currentUser.contacts || currentUser.contacts.length === 0) {
+                chatList.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">💬</div>
+                        <div>No chats yet</div>
+                        <div style="font-size:clamp(12px,3.5vw,14px);margin-top:10px">Add contacts using their Telesap code</div>
+                        <button class="btn-primary" style="margin-top:20px;width:auto;padding:12px 24px" onclick="showAddContact()">Add First Contact</button>
+                    </div>
+                `;
+                return;
+            }
+
+            chatList.innerHTML = '<div style="padding:15px;color:var(--text-secondary);text-align:center">Loading contacts...</div>';
+            contactsListeners.forEach(ref => ref.off());
+            contactsListeners = [];
+            
+            const fragment = document.createDocumentFragment();
+            for (const contactData of currentUser.contacts) {
+                const contactEl = await createContactElement(contactData);
+                if (contactEl) fragment.appendChild(contactEl);
+            }
+            
+            chatList.innerHTML = '';
+            chatList.appendChild(fragment);
+        }
+
+        async function createContactElement(contactData) {
+            try {
+                const code = contactData.code || contactData;
+                const codeSnapshot = await database.ref('codes/' + code).once('value');
+                const contactUid = codeSnapshot.val();
+                if (!contactUid) return null;
+                
+                const userSnapshot = await database.ref('users/' + contactUid).once('value');
+                const contact = userSnapshot.val();
+                if (!contact) return null;
+
+                contact.uid = contactUid;
+                contact.code = code;
+
+                const chatItem = document.createElement('div');
+                chatItem.className = 'chat-item';
+                chatItem.dataset.code = contact.code;
+                chatItem.dataset.uid = contact.uid;
+                chatItem.onclick = () => openChat(contact);
+
+                const avatarHtml = contact.avatar ? 
+                    `<img src="${contact.avatar}" alt="" style="width:100%;height:100%;object-fit:cover">` : 
+                    `<span>${getInitials(contact.name)}</span>`;
+
+                chatItem.innerHTML = `
+                    <div class="chat-avatar" id="avatar-${contact.code}">${avatarHtml}</div>
+                    <div class="chat-info">
+                        <div class="chat-name-row">
+                            <div class="chat-name">${escapeHtml(contact.name)}</div>
+                            <div class="chat-time" id="time-${contact.code}">--</div>
+                        </div>
+                        <div class="chat-preview-row">
+                            <div class="chat-preview" id="preview-${contact.code}">Tap to chat</div>
+                            <div class="unread-count" id="unread-${contact.code}" style="display:none">0</div>
+                        </div>
+                    </div>
+                `;
+
+                setupChatListener(contact);
+                return chatItem;
+            } catch (error) {
+                console.error('Error loading contact:', error);
+                return null;
+            }
+        }
+
+        // ==========================================
+        // CRITICAL FIX: CHAT KEY GENERATION
+        // ==========================================
+
+        function getChatKey(user1, user2) {
+            // CRITICAL: Sort UIDs alphabetically to ensure same key for both users
+            const sorted = [user1, user2].sort();
+            const key = sorted[0] + '_' + sorted[1];
+            console.log('🔑 Chat key generated:', key, 'for users:', user1, 'and', user2);
+            return key;
+        }
+
+        function setupChatListener(contact) {
+            if (!database || !currentUser) return;
+            const chatKey = getChatKey(currentUser.uid, contact.uid);
+            
+            // Listen to last message only for preview
+            const messagesRef = database.ref('messages/' + chatKey).limitToLast(1);
+            messagesRef.on('value', (snapshot) => {
+                console.log('📨 Received message update for', contact.code, ':', snapshot.val());
+                updateChatPreview(contact, snapshot.val());
+            });
+            
+            contactsListeners.push(messagesRef);
+        }
+
+        function updateChatPreview(contact, messages) {
+            const timeEl = document.getElementById(`time-${contact.code}`);
+            const previewEl = document.getElementById(`preview-${contact.code}`);
+            const unreadEl = document.getElementById(`unread-${contact.code}`);
+            
+            if (!messages || Object.keys(messages).length === 0) return;
+
+            const messageArray = Object.values(messages);
+            const lastMessage = messageArray[messageArray.length - 1];
+            
+            if (timeEl) timeEl.textContent = formatTime(lastMessage.timestamp);
+            
+            if (previewEl) {
+                let prefix = '';
+                let text = lastMessage.text || '';
+                if (lastMessage.from === currentUser.uid) prefix = 'You: ';
+                if (lastMessage.type === 'image') text = '📷 Photo';
+                else if (lastMessage.type === 'file') text = '📎 File';
+                else if (lastMessage.type === 'voice') text = '🎤 Voice message';
+                previewEl.textContent = prefix + text.substring(0, 30);
+            }
+
+            // Count unread messages
+            if (unreadEl) {
+                const chatKey = getChatKey(currentUser.uid, contact.uid);
+                database.ref('messages/' + chatKey).once('value', (snapshot) => {
+                    const allMessages = snapshot.val();
+                    if (allMessages) {
+                        const unread = Object.values(allMessages).filter(m => 
+                            m.to === currentUser.uid && !m.read
+                        ).length;
+                        unreadEl.textContent = unread;
+                        unreadEl.style.display = unread > 0 ? 'flex' : 'none';
+                        updateAppBadge();
+                    }
+                });
+            }
+        }
+
+        function updateAppBadge() {
+            let total = 0;
+            document.querySelectorAll('.unread-count').forEach(el => {
+                if (el.style.display !== 'none') {
+                    total += parseInt(el.textContent) || 0;
+                }
+            });
+            const badge = document.getElementById('appBadge');
+            if (total > 0) {
+                badge.textContent = total > 99 ? '99+' : total;
+                badge.classList.add('active');
+                document.title = `(${total}) Telesap Pro`;
+            } else {
+                badge.classList.remove('active');
+                document.title = 'Telesap Pro';
+            }
+        }
+
+        // ==========================================
+        // OPEN CHAT - FIXED WITH PROPER LISTENERS
+        // ==========================================
+
+        async function openChat(contact) {
+            console.log('📱 Opening chat with:', contact.name, 'UID:', contact.uid);
+            currentChat = contact;
+            
+            // Update UI
+            document.querySelectorAll('.chat-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.code === contact.code) item.classList.add('active');
+            });
+
+            const chatArea = document.getElementById('chatArea');
+            chatArea.classList.remove('empty');
+            chatArea.classList.add('active');
+            
+            if (window.innerWidth <= 900) {
+                document.getElementById('sidebar').classList.add('hidden-mobile');
+                chatArea.classList.add('active-mobile');
+            }
+            
+            document.getElementById('emptyChatState').style.display = 'none';
+            document.getElementById('chatHeader').style.display = 'flex';
+            document.getElementById('chatMessages').style.display = 'flex';
+            document.getElementById('messageInputArea').style.display = 'flex';
+            
+            document.getElementById('chatName').textContent = contact.name;
+            document.getElementById('chatInitial').textContent = getInitials(contact.name);
+            
+            if (contact.avatar) {
+                document.getElementById('chatAvatarImg').src = contact.avatar;
+                document.getElementById('chatAvatarImg').style.display = 'block';
+                document.getElementById('chatInitial').style.display = 'none';
+            } else {
+                document.getElementById('chatAvatarImg').style.display = 'none';
+                document.getElementById('chatInitial').style.display = 'flex';
+            }
+            
+            // Check online status
+            checkOnlineStatus(contact);
+            
+            // Load messages
+            await loadMessages(contact);
+            
+            // Setup real-time listeners
+            setupMessagesListener(contact);
+            setupTypingListener(contact);
+            
+            setTimeout(() => {
+                document.getElementById('messageInput').focus();
+            }, 100);
+        }
+
+        async function checkOnlineStatus(contact) {
+            const statusRef = database.ref('presence/' + contact.uid);
+            statusRef.on('value', (snapshot) => {
+                const status = snapshot.val();
+                const indicator = document.querySelector('.online-indicator');
+                const text = document.getElementById('statusText');
+                
+                if (status && status.state === 'online') {
+                    indicator.style.display = 'inline-block';
+                    text.textContent = 'Online';
+                } else {
+                    indicator.style.display = 'none';
+                    text.textContent = status ? `Last seen ${formatTime(status.lastChanged)}` : 'Offline';
+                }
+            });
+        }
+
+        async function loadMessages(contact) {
+            const chatKey = getChatKey(currentUser.uid, contact.uid);
+            console.log('📥 Loading messages from:', chatKey);
+            
+            try {
+                const snapshot = await database.ref('messages/' + chatKey).limitToLast(50).once('value');
+                const data = snapshot.val();
+                console.log('📦 Loaded messages:', data ? Object.keys(data).length : 0);
+                const messages = data ? Object.entries(data).map(([id, msg]) => ({...msg, id})).sort((a, b) => a.timestamp - b.timestamp) : [];
+                displayMessages(messages);
+                markMessagesAsRead(contact);
+            } catch (error) {
+                console.error('❌ Error loading messages:', error);
+            }
+        }
+
+        function displayMessages(messages) {
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+
+            if (messages.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">👋</div>
+                        <div>No messages yet</div>
+                        <div>Say hello to ${escapeHtml(currentChat.name)}!</div>
+                    </div>
+                `;
+                return;
+            }
+
+            let lastDate = null;
+
+            messages.forEach((msg) => {
+                const isOutgoing = msg.from === currentUser.uid;
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${isOutgoing ? 'outgoing' : 'incoming'}`;
+                messageDiv.dataset.id = msg.id;
+                messageDiv.dataset.text = msg.text || '';
+                
+                // Date separator
+                const msgDate = new Date(msg.timestamp).toDateString();
+                if (msgDate !== lastDate) {
+                    const separator = document.createElement('div');
+                    separator.style.cssText = 'text-align:center;color:var(--text-secondary);font-size:12px;margin:10px 0';
+                    separator.textContent = formatDateSeparator(msg.timestamp);
+                    container.appendChild(separator);
+                    lastDate = msgDate;
+                }
+                
+                // Reply preview
+                let replyHtml = '';
+                if (msg.replyTo) {
+                    replyHtml = `
+                        <div style="background:rgba(0,0,0,0.05);padding:5px 8px;border-radius:4px;margin-bottom:5px;border-left:3px solid var(--primary)">
+                            <div style="font-size:11px;color:var(--primary);font-weight:600">${escapeHtml(msg.replyTo.name)}</div>
+                            <div style="font-size:12px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(msg.replyTo.text)}</div>
+                        </div>
+                    `;
+                }
+                
+                // Message content
+                let contentHtml = '';
+                if (msg.type === 'image') {
+                    contentHtml = `<img src="${msg.fileUrl}" class="message-image" onclick="viewMedia('${msg.fileUrl}')" alt="Image">`;
+                } else if (msg.type === 'file') {
+                    contentHtml = `
+                        <a href="${msg.fileUrl}" target="_blank" class="message-file">
+                            <span class="file-icon">📎</span>
+                            <div class="file-info">
+                                <div class="file-name">${escapeHtml(msg.fileName)}</div>
+                                <div class="file-size">${formatFileSize(msg.fileSize)}</div>
+                            </div>
+                        </a>
+                    `;
+                } else if (msg.type === 'voice') {
+                    contentHtml = `
+                        <div style="display:flex;align-items:center;gap:10px;min-width:150px">
+                            <button onclick="playVoiceMessage('${msg.fileUrl}', this)" style="background:var(--primary);color:#fff;border:none;width:36px;height:36px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center">▶</button>
+                            <div style="flex:1;height:30px;background:rgba(0,0,0,0.1);border-radius:15px;position:relative;overflow:hidden">
+                                <div style="position:absolute;left:0;top:0;bottom:0;width:0;background:var(--primary);transition:width .3s" class="voice-progress"></div>
+                            </div>
+                            <span style="font-size:11px;color:var(--text-secondary)">${msg.duration || '0:00'}</span>
+                        </div>
+                    `;
+                } else {
+                    contentHtml = `<div class="message-text">${escapeHtml(msg.text)}</div>`;
+                }
+                
+                const statusIcon = isOutgoing ? (msg.read ? '✓✓' : msg.delivered ? '✓✓' : '✓') : '';
+                const statusClass = msg.read ? 'read' : '';
+                
+                messageDiv.innerHTML = `
+                    ${replyHtml}
+                    ${contentHtml}
+                    <div class="message-meta">
+                        <span class="message-time">${formatTime(msg.timestamp)}</span>
+                        ${isOutgoing ? `<span class="message-status ${statusClass}">${statusIcon}</span>` : ''}
+                    </div>
+                    <div class="message-actions">
+                        <button class="message-action-btn" onclick="replyToMessage('${msg.id}')" title="Reply">↩️</button>
+                        <button class="message-action-btn" onclick="forwardMessage('${msg.id}')" title="Forward">↪️</button>
+                        <button class="message-action-btn" onclick="showReactionPicker('${msg.id}')" title="React">😊</button>
+                        ${isOutgoing ? `<button class="message-action-btn" onclick="deleteMessage('${msg.id}')" title="Delete" style="color:var(--danger)">🗑️</button>` : ''}
+                    </div>
+                `;
+                
+                messageDiv.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    showMessageContextMenu(e, msg);
+                });
+                
+                container.appendChild(messageDiv);
+            });
+
+            setTimeout(() => {
+                container.scrollTop = container.scrollHeight;
+            }, 50);
+        }
+
+        function formatDateSeparator(timestamp) {
+            const date = new Date(timestamp);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            if (date.toDateString() === today.toDateString()) return 'Today';
+            if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+            return date.toLocaleDateString([], {weekday: 'long', month: 'short', day: 'numeric'});
+        }
+
+        function formatFileSize(bytes) {
+            if (!bytes) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        // ==========================================
+        // CRITICAL FIX: REAL-TIME MESSAGE LISTENER
+        // ==========================================
+
+        function setupMessagesListener(contact) {
+            const chatKey = getChatKey(currentUser.uid, contact.uid);
+            console.log('👂 Setting up REAL-TIME listener for:', chatKey);
+            
+            if (messagesRef) {
+                console.log('🧹 Cleaning up old listener');
+                messagesRef.off();
+            }
+            
+            messagesRef = database.ref('messages/' + chatKey).limitToLast(50);
+            
+            messagesRef.on('value', (snapshot) => {
+                console.log('🔔 REAL-TIME UPDATE received for chat:', chatKey);
+                const data = snapshot.val();
+                if (data) {
+                    const messages = Object.entries(data).map(([id, msg]) => ({...msg, id})).sort((a, b) => a.timestamp - b.timestamp);
+                    console.log('📨 Messages count:', messages.length);
+                    displayMessages(messages);
+                    markMessagesAsRead(contact);
+                }
+            }, (error) => {
+                console.error('❌ Listener error:', error);
+            });
+        }
+
+        async function markMessagesAsRead(contact) {
+            const chatKey = getChatKey(currentUser.uid, contact.uid);
+            const updates = {};
+            
+            try {
+                const snapshot = await database.ref('messages/' + chatKey).once('value');
+                snapshot.forEach(child => {
+                    const msg = child.val();
+                    if (msg.to === currentUser.uid && !msg.read) {
+                        updates[child.key + '/read'] = true;
+                        updates[child.key + '/delivered'] = true;
+                    }
+                });
+                
+                if (Object.keys(updates).length > 0) {
+                    console.log('✅ Marking messages as read:', Object.keys(updates).length);
+                    await database.ref('messages/' + chatKey).update(updates);
+                    updateAppBadge();
+                }
+            } catch (error) {
+                console.error('Error marking messages as read:', error);
+            }
+        }
+
+        function closeChatArea() {
+            console.log('🚪 Closing chat area');
+            const chatArea = document.getElementById('chatArea');
+            chatArea.classList.remove('active');
+            chatArea.classList.add('empty');
+            chatArea.classList.remove('active-mobile');
+            
+            document.getElementById('sidebar').classList.remove('hidden-mobile');
+            
+            document.getElementById('emptyChatState').style.display = 'flex';
+            document.getElementById('chatHeader').style.display = 'none';
+            document.getElementById('chatMessages').style.display = 'none';
+            document.getElementById('messageInputArea').style.display = 'none';
+            document.getElementById('searchMessages').style.display = 'none';
+            
+            if (messagesRef) {
+                console.log('🧹 Removing message listener');
+                messagesRef.off();
+                messagesRef = null;
+            }
+            if (typingRef) {
+                typingRef.off();
+                typingRef = null;
+            }
+            
+            document.querySelectorAll('.chat-item').forEach(item => item.classList.remove('active'));
+            currentChat = null;
+            replyToMessageId = null;
+            cancelReply();
+        }
+
+        // ==========================================
+        // SEND MESSAGE - FIXED
+        // ==========================================
+
+        async function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            
+            if (!text || !currentChat) {
+                console.log('⚠️ Cannot send: empty text or no chat');
+                return;
+            }
+
+            console.log('📤 Sending message to:', currentChat.name, 'UID:', currentChat.uid);
+
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            const messageId = database.ref().child('messages').push().key;
+            
+            const messageData = {
+                id: messageId,
+                from: currentUser.uid,
+                to: currentChat.uid,
+                text: text,
+                timestamp: firebase.database.ServerValue.TIMESTAMP,
+                read: false,
+                delivered: false,
+                type: 'text'
+            };
+
+            if (replyToMessageId) {
+                try {
+                    const replySnapshot = await database.ref('messages/' + chatKey + '/' + replyToMessageId).once('value');
+                    const replyMsg = replySnapshot.val();
+                    if (replyMsg) {
+                        messageData.replyTo = {
+                            name: replyMsg.from === currentUser.uid ? 'You' : currentChat.name,
+                            text: (replyMsg.text || '').substring(0, 100)
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error getting reply message:', e);
+                }
+            }
+
+            try {
+                console.log('💾 Saving message to:', 'messages/' + chatKey + '/' + messageId);
+                await database.ref('messages/' + chatKey + '/' + messageId).set(messageData);
+                console.log('✅ Message saved successfully');
+
+                input.value = '';
+                input.style.height = 'auto';
+                cancelReply();
+                clearTyping();
+                
+                // Toggle buttons
+                document.getElementById('sendBtn').style.display = 'none';
+                document.getElementById('voiceBtn').style.display = 'flex';
+                
+                const container = document.getElementById('chatMessages');
+                setTimeout(() => {
+                    container.scrollTop = container.scrollHeight;
+                }, 100);
+                
+            } catch (error) {
+                console.error('❌ Error sending message:', error);
+                showToast('Failed to send: ' + error.message, 'error');
+            }
+        }
+
+        function setupTypingListener(contact) {
+            const chatKey = getChatKey(currentUser.uid, contact.uid);
+            
+            if (typingRef) typingRef.off();
+            
+            typingRef = database.ref('typing/' + chatKey + '/' + contact.uid);
+            typingRef.on('value', (snapshot) => {
+                const isTyping = snapshot.val();
+                const indicator = document.getElementById('typingIndicator');
+                
+                if (isTyping && isTyping > Date.now() - 5000) {
+                    indicator.classList.add('active');
+                } else {
+                    indicator.classList.remove('active');
+                }
+            });
+        }
+
+        let typingTimeout;
+        function handleTyping() {
+            if (!currentChat || !database) return;
+
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            const typingRef = database.ref('typing/' + chatKey + '/' + currentUser.uid);
+            
+            typingRef.set(Date.now());
+            
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                clearTyping();
+            }, 5000);
+        }
+
+        function clearTyping() {
+            if (!currentChat || !database) return;
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            database.ref('typing/' + chatKey + '/' + currentUser.uid).remove();
+        }
+
+        function handleKeyDown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            const newHeight = Math.min(textarea.scrollHeight, 120);
+            textarea.style.height = newHeight + 'px';
+            
+            const sendBtn = document.getElementById('sendBtn');
+            const voiceBtn = document.getElementById('voiceBtn');
+            if (textarea.value.trim().length > 0) {
+                sendBtn.style.display = 'flex';
+                voiceBtn.style.display = 'none';
+            } else {
+                sendBtn.style.display = 'none';
+                voiceBtn.style.display = 'flex';
+            }
+        }
+
+        // ==========================================
+        // MESSAGE ACTIONS
+        // ==========================================
+
+        function replyToMessage(messageId) {
+            selectedMessageId = messageId;
+            replyToMessageId = messageId;
+            
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            database.ref('messages/' + chatKey + '/' + messageId).once('value', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg) {
+                    document.getElementById('replyPreviewName').textContent = msg.from === currentUser.uid ? 'Replying to yourself' : 'Replying to ' + currentChat.name;
+                    document.getElementById('replyPreviewText').textContent = (msg.text || '').substring(0, 100);
+                    document.getElementById('replyPreview').classList.add('active');
+                    document.getElementById('messageInput').focus();
+                }
+            });
+        }
+
+        function cancelReply() {
+            replyToMessageId = null;
+            document.getElementById('replyPreview').classList.remove('active');
+        }
+
+        function forwardMessage(messageId) {
+            showToast('Forward feature coming soon!', 'success');
+        }
+
+        async function deleteMessage(messageId) {
+            if (!confirm('Delete this message?')) return;
+            
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            try {
+                await database.ref('messages/' + chatKey + '/' + messageId).remove();
+                showToast('Message deleted', 'success');
+            } catch (error) {
+                showToast('Delete failed: ' + error.message, 'error');
+            }
+        }
+
+        function showReactionPicker(messageId) {
+            const emojis = ['👍', '❤️', '😂', '😮', '😢', '🎉'];
+            const picker = document.getElementById('emojiPicker');
+            picker.innerHTML = emojis.map(e => 
+                `<button class="emoji-btn" onclick="addReaction('${messageId}', '${e}')">${e}</button>`
+            ).join('');
+            picker.classList.add('active');
+        }
+
+        async function addReaction(messageId, emoji) {
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            const reactionRef = database.ref('messages/' + chatKey + '/' + messageId + '/reactions/' + emoji + '/' + currentUser.uid);
+            const snapshot = await reactionRef.once('value');
+            if (snapshot.exists()) {
+                reactionRef.remove();
+            } else {
+                reactionRef.set(true);
+            }
+            document.getElementById('emojiPicker').classList.remove('active');
+        }
+
+        function showMessageContextMenu(e, msg) {
+            selectedMessageId = msg.id;
+            const menu = document.getElementById('contextMenu');
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="replyToMessage('${msg.id}')">↩️ Reply</div>
+                <div class="context-menu-item" onclick="copyMessage()">📋 Copy</div>
+                <div class="context-menu-item" onclick="deleteMessage('${msg.id}')">🗑️ Delete</div>
+            `;
+            menu.style.left = Math.min(e.pageX, window.innerWidth - 160) + 'px';
+            menu.style.top = Math.min(e.pageY, window.innerHeight - 150) + 'px';
+            menu.classList.add('active');
+        }
+
+        function copyMessage() {
+            if (!selectedMessageId) return;
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            database.ref('messages/' + chatKey + '/' + selectedMessageId).once('value', (snapshot) => {
+                const msg = snapshot.val();
+                if (msg && navigator.clipboard) {
+                    navigator.clipboard.writeText(msg.text || '').then(() => showToast('Copied!', 'success'));
+                }
+            });
+            closeAllModals();
+        }
+
+        // ==========================================
+        // FILE & MEDIA
+        // ==========================================
+
+        function attachFile() {
+            document.getElementById('fileInput').click();
+        }
+
+        async function handleFileSelect(event) {
+            const files = event.target.files;
+            if (!files.length || !currentChat) return;
+
+            for (const file of files) {
+                await uploadFile(file);
+            }
+        }
+
+        async function uploadFile(file) {
+            if (file.size > 50 * 1024 * 1024) {
+                showToast('File too large. Max 50MB.', 'error');
+                return;
+            }
+
+            const isImage = file.type.startsWith('image/');
+            const type = isImage ? 'image' : 'file';
+            const folder = isImage ? 'images' : 'files';
+            
+            showToast(`Uploading ${type}...`);
+            
+            try {
+                const fileName = `${Date.now()}_${file.name}`;
+                const storageRef = storage.ref(`${folder}/${currentUser.uid}/${fileName}`);
+                const uploadTask = storageRef.put(file);
+                
+                uploadTask.on('state_changed', 
+                    (snapshot) => {
+                        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                        console.log('Upload progress:', progress + '%');
+                    },
+                    (error) => {
+                        showToast('Upload failed: ' + error.message, 'error');
+                    },
+                    async () => {
+                        const url = await uploadTask.snapshot.ref.getDownloadURL();
+                        
+                        const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+                        const messageId = database.ref().child('messages').push().key;
+                        
+                        const messageData = {
+                            id: messageId,
+                            from: currentUser.uid,
+                            to: currentChat.uid,
+                            text: isImage ? '📷 Photo' : `📎 ${file.name}`,
+                            timestamp: firebase.database.ServerValue.TIMESTAMP,
+                            read: false,
+                            delivered: false,
+                            type: type,
+                            fileUrl: url,
+                            fileName: file.name,
+                            fileSize: file.size
+                        };
+                        
+                        await database.ref('messages/' + chatKey + '/' + messageId).set(messageData);
+                        showToast(`${type} sent!`, 'success');
+                    }
+                );
+            } catch (error) {
+                showToast('Upload failed: ' + error.message, 'error');
+            }
+        }
+
+        function openCamera() {
+            document.getElementById('cameraInput').click();
+        }
+
+        function handleCameraCapture(event) {
+            handleFileSelect(event);
+        }
+
+        function viewMedia(url) {
+            document.getElementById('mediaViewerImg').src = url;
+            document.getElementById('mediaViewer').classList.add('active');
+        }
+
+        function closeMediaViewer() {
+            document.getElementById('mediaViewer').classList.remove('active');
+        }
+
+        function playVoiceMessage(url, btn) {
+            const audio = new Audio(url);
+            const progressBar = btn.nextElementSibling.querySelector('.voice-progress');
+            
+            btn.innerHTML = '⏸';
+            audio.play();
+            
+            audio.ontimeupdate = () => {
+                const percent = (audio.currentTime / audio.duration) * 100;
+                progressBar.style.width = percent + '%';
+            };
+            
+            audio.onended = () => {
+                btn.innerHTML = '▶';
+                progressBar.style.width = '0%';
+            };
+        }
+
+        // ==========================================
+        // VOICE RECORDING
+        // ==========================================
+
+        async function startRecording() {
+            if (!navigator.mediaDevices || !currentChat) return;
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (e) => audioChunks.push(e.data);
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await uploadVoiceMessage(audioBlob);
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start();
+                recording = true;
+                document.getElementById('voiceBtn').classList.add('recording');
+                showToast('Recording... Release to send', 'success');
+                
+            } catch (error) {
+                showToast('Microphone access denied', 'error');
+            }
+        }
+
+        function stopRecording() {
+            if (!recording || !mediaRecorder) return;
+            mediaRecorder.stop();
+            recording = false;
+            document.getElementById('voiceBtn').classList.remove('recording');
+        }
+
+        async function uploadVoiceMessage(blob) {
+            if (!currentChat) return;
+            
+            try {
+                const fileName = `voice_${Date.now()}.webm`;
+                const storageRef = storage.ref(`voice/${currentUser.uid}/${fileName}`);
+                await storageRef.put(blob);
+                const url = await storageRef.getDownloadURL();
+                
+                const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+                const messageId = database.ref().child('messages').push().key;
+                
+                const messageData = {
+                    id: messageId,
+                    from: currentUser.uid,
+                    to: currentChat.uid,
+                    text: '🎤 Voice message',
+                    timestamp: firebase.database.ServerValue.TIMESTAMP,
+                    read: false,
+                    delivered: false,
+                    type: 'voice',
+                    fileUrl: url,
+                    duration: '0:00'
+                };
+                
+                await database.ref('messages/' + chatKey + '/' + messageId).set(messageData);
+                showToast('Voice message sent!', 'success');
+                
+            } catch (error) {
+                showToast('Failed to send voice message', 'error');
+            }
+        }
+
+        // ==========================================
+        // EMOJI PICKER
+        // ==========================================
+
+        function toggleEmojiPicker() {
+            const picker = document.getElementById('emojiPicker');
+            if (picker.classList.contains('active')) {
+                picker.classList.remove('active');
+            } else {
+                const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾','👋','🤚','🖐','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶','👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁','👅','👄','👶','🧒','👦','👧','🧑','👱','👨','🧔','👩','🧓','👴','👵','🙍','🙎','🙅','🙆','💁','🙋','🧏','🙇','🤦','🤷','👮','🕵️','💂','🥷','👷','🤴','👸','👳','👲','🧕','🤵','👰','🤰','🤱','👼','🎅','🤶','🦸','🦹','🧙','🧚','🧛','🧜','🧝','🧞','🧟','💆','💇','🚶','🧍','🧎','🏃','💃','🕺','🕴️','👯','🧖','🧗','🤺','🏇','⛷️','🏂','🏌️','🏄','🚣','🏊','⛹️','🏋️','🚴','🚵','🤸','🤼','🤽','🤾','🤹','🧘','🛀','🛌','👭','👫','👬','💏','💑','👪','🗣️','👤','👥','🫂','👣','🐵','🐒','🦍','🦧','🐶','🐕','🦮','🐩','🐺','🦊','🦝','🐱','🐈','🦁','🐯','🐅','🐆','🐴','🐎','🦄','🦓','🦌','🦬','🐮','🐂','🐃','🐄','🐷','🐖','🐗','🐽','🐏','🐑','🐐','🐪','🐫','🦙','🦒','🐘','🦣','🦏','🦛','🐭','🐁','🐀','🐹','🐰','🐇','🐿️','🦫','🦔','🦇','🐻','🐨','🐼','🦥','🦦','🦨','🦘','🦡','🐾','🦃','🐔','🐓','🐣','🐤','🐥','🐦','🐧','🕊️','🦅','🦆','🦢','🦉','🦤','🪶','🦩','🦚','🦜','🐸','🐊','🐢','🦎','🐍','🐲','🐉','🦕','🦖','🐳','🐋','🐬','🦭','🐟','🐠','🐡','🦈','🐙','🐚','🐌','🦋','🐛','🐜','🐝','🪲','🐞','🦗','🪳','🕷️','🕸️','🦂','🦟','🪰','🪱','🦠','💐','🌸','💮','🏵️','🌹','🥀','🌺','🌻','🌼','🌷','🌱','🪴','🌲','🌳','🌴','🌵','🌾','🌿','☘️','🍀','🍁','🍂','🍃','🍄','🌰','🦀','🦞','🦐','🦑','🍇','🍈','🍉','🍊','🍋','🍌','🍍','🥭','🍎','🍏','🍐','🍑','🍒','🍓','🫐','🥝','🍅','🫒','🥥','🥑','🍆','🥔','🥕','🌽','🌶️','🫑','🥒','🥬','🥦','🧄','🧅','🍄','🥜','🌰','🍞','🥐','🥖','🫓','🥨','🥯','🥞','🧇','🧀','🍖','🍗','🥩','🥓','🍔','🍟','🍕','🌭','🥪','🌮','🌯','🫔','🥙','🧆','🥚','🍳','🥘','🍲','🫕','🥣','🥗','🍿','🧈','🧂','🥫','🍱','🍘','🍙','🍚','🍛','🍜','🍝','🍠','🍢','🍣','🍤','🍥','🥮','🍡','🥟','🥠','🥡','🦀','🦞','🦐','🦑','🍦','🍧','🍨','🍩','🍪','🎂','🍰','🧁','🥧','🍫','🍬','🍭','🍮','🍯','🍼','🥛','☕','🫖','🍵','🍶','🍾','🍷','🍸','🍹','🍺','🍻','🥂','🥃','🥤','🧋','🧃','🧉','🧊','🥢','🍽️','🍴','🥄','🔪','🏺','🌍','🌎','🌏','🌐','🗺️','🧭','⛰️','🏔️','🌋','🗻','🏕️','🏖️','🏜️','🏝️','🏞️','🏟️','🏛️','🏗️','🧱','🪨','🪵','🛖','🏘️','🏚️','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽','⛪','🕌','🛕','🕍','⛩️','🕋','⛲','⛺','🌁','🌃','🏙️','🌄','🌅','🌆','🌇','🌉','♨️','🎠','🎡','🎢','💈','🎪','🚂','🚃','🚄','🚅','🚆','🚇','🚈','🚉','🚊','🚝','🚞','🚋','🚌','🚍','🚎','🚐','🚑','🚒','🚓','🚔','🚕','🚖','🚗','🚘','🚙','🛻','🚚','🚛','🚜','🏎️','🏍️','🛵','🦽','🦼','🛺','🚲','🛴','🛹','🛼','🚏','🛣️','🛤️','🛢️','⛽','🚨','🚥','🚦','🛑','🚧','⚓','⛵','🛶','🚤','🛳️','⛴️','🛥️','🚢','✈️','🛩️','🛫','🛬','🪂','💺','🚁','🚟','🚠','🚡','🛰️','🚀','🛸','🛎️','🧳','⌛','⏳','⌚','⏰','⏱️','⏲️','🕰️','🕛','🕧','🕐','🕜','🕑','🕝','🕒','🕞','🕓','🕟','🕔','🕠','🕕','🕡','🕖','🕢','🕗','🕣','🕘','🕤','🕙','🕥','🕚','🕦','🌑','🌒','🌓','🌔','🌕','🌖','🌗','🌘','🌙','🌚','🌛','🌜','🌡️','☀️','🌝','🌞','⭐','🌟','🌠','☁️','⛅','⛈️','🌤️','🌥️','🌦️','🌧️','🌨️','❄️','🌬️','💨','💧','💦','☔','☂️','🌊','🌫️'];
+                picker.innerHTML = emojis.map(e => `<button class="emoji-btn" onclick="insertEmoji('${e}')">${e}</button>`).join('');
+                picker.classList.add('active');
+            }
+        }
+
+        function insertEmoji(emoji) {
+            const input = document.getElementById('messageInput');
+            input.value += emoji;
+            input.focus();
+            autoResize(input);
+        }
+
+        // ==========================================
+        // CONTACTS MANAGEMENT
+        // ==========================================
+
+        function showAddContact() {
+            document.getElementById('addContactModal').classList.add('active');
+            document.getElementById('contactCode').value = '';
+            setTimeout(() => document.getElementById('contactCode').focus(), 100);
+        }
+
+        function closeAddContact() {
+            document.getElementById('addContactModal').classList.remove('active');
+        }
+
+        async function addContact() {
+            const code = document.getElementById('contactCode').value.trim().toUpperCase();
+            
+            if (!code) return showToast('Please enter a code', 'error');
+            if (code === currentUser.code) return showToast("You can't add yourself!", 'error');
+            if (currentUser.contacts && currentUser.contacts.some(c => (c.code || c) === code)) {
+                return showToast('This user is already in your contacts', 'error');
+            }
+
+            try {
+                showToast('Searching for user...');
+                const snapshot = await database.ref('codes/' + code).once('value');
+                const contactUid = snapshot.val();
+                
+                if (!contactUid) return showToast('User not found. Check the code.', 'error');
+
+                const userSnapshot = await database.ref('users/' + contactUid).once('value');
+                const contact = userSnapshot.val();
+                if (!contact) return showToast('User not found.', 'error');
+
+                const contactData = {
+                    code: code,
+                    addedAt: Date.now(),
+                    pinned: false,
+                    archived: false,
+                    muted: false
+                };
+                
+                if (!currentUser.contacts) currentUser.contacts = [];
+                currentUser.contacts.push(contactData);
+                
+                await database.ref('users/' + currentUser.uid + '/contacts').set(currentUser.contacts);
+                
+                // Add reverse contact
+                if (!contact.contacts) contact.contacts = [];
+                if (!contact.contacts.some(c => (c.code || c) === currentUser.code)) {
+                    contact.contacts.push({
+                        code: currentUser.code,
+                        addedAt: Date.now()
+                    });
+                    await database.ref('users/' + contactUid + '/contacts').set(contact.contacts);
+                }
+
+                closeAddContact();
+                await loadContacts();
+                
+                contact.uid = contactUid;
+                contact.code = code;
+                openChat(contact);
+                showToast(`Added ${contact.name}!`, 'success');
+                
+            } catch (error) {
+                showToast('Error adding contact: ' + error.message, 'error');
+            }
+        }
+
+        function showContactInfo() {
+            if (!currentChat) return;
+            document.getElementById('contactInfoName').textContent = currentChat.name;
+            document.getElementById('contactInfoCode').textContent = currentChat.code;
+            document.getElementById('contactInfoInitial').textContent = getInitials(currentChat.name);
+            if (currentChat.avatar) {
+                document.getElementById('contactInfoImg').src = currentChat.avatar;
+                document.getElementById('contactInfoImg').style.display = 'block';
+                document.getElementById('contactInfoInitial').style.display = 'none';
+            }
+            if (currentChat.bio) document.getElementById('contactInfoBio').textContent = currentChat.bio;
+            document.getElementById('contactInfoModal').classList.add('active');
+        }
+
+        function closeContactInfo() {
+            document.getElementById('contactInfoModal').classList.remove('active');
+        }
+
+        async function blockContact() {
+            if (!currentChat) return;
+            if (confirm(`Block ${currentChat.name}?`)) {
+                if (!currentUser.blocked) currentUser.blocked = [];
+                currentUser.blocked.push(currentChat.uid);
+                await database.ref('users/' + currentUser.uid + '/blocked').set(currentUser.blocked);
+                currentUser.contacts = currentUser.contacts.filter(c => (c.code || c) !== currentChat.code);
+                await database.ref('users/' + currentUser.uid + '/contacts').set(currentUser.contacts);
+                closeContactInfo();
+                closeChatArea();
+                loadContacts();
+                showToast(`${currentChat.name} blocked`, 'success');
+            }
+        }
+
+        async function deleteChat() {
+            if (!currentChat) return;
+            if  (!confirm('Delete this chat?')) return;
+            
+            currentUser.contacts = currentUser.contacts.filter(c => (c.code || c) !== currentChat.code);
+            await database.ref('users/' + currentUser.uid + '/contacts').set(currentUser.contacts);
+            closeContactInfo();
+            closeChatArea();
+            loadContacts();
+            showToast('Chat deleted', 'success');
+        }
+
+        function toggleSearchMessages() {
+            const searchDiv = document.getElementById('searchMessages');
+            searchDiv.style.display = searchDiv.style.display === 'none' ? 'flex' : 'none';
+            if (searchDiv.style.display === 'flex') {
+                document.getElementById('messageSearchInput').focus();
+            }
+        }
+
+        function searchInMessages(query) {
+            if (!query) {
+                document.querySelectorAll('.message').forEach(m => m.style.display = 'flex');
+                return;
+            }
+            const lowerQuery = query.toLowerCase();
+            document.querySelectorAll('.message').forEach(msg => {
+                const text = msg.dataset.text || '';
+                msg.style.display = text.toLowerCase().includes(lowerQuery) ? 'flex' : 'none';
+            });
+        }
+
+        function showChatMenu() {
+            const menu = document.getElementById('contextMenu');
+            menu.innerHTML = `
+                <div class="context-menu-item" onclick="clearChat()">🧹 Clear Chat</div>
+                <div class="context-menu-item" onclick="muteChat()">🔕 Mute</div>
+                <div class="context-menu-item" onclick="closeAllModals()">❌ Close</div>
+            `;
+            menu.style.left = (window.innerWidth - 170) + 'px';
+            menu.style.top = '70px';
+            menu.classList.add('active');
+        }
+
+        async function clearChat() {
+            if (!currentChat || !confirm('Clear all messages?')) return;
+            const chatKey = getChatKey(currentUser.uid, currentChat.uid);
+            await database.ref('messages/' + chatKey).remove();
+            showToast('Chat cleared', 'success');
+            closeAllModals();
+        }
+
+        function muteChat() {
+            showToast('Chat muted', 'success');
+            closeAllModals();
+        }
+
+        // ==========================================
+        // STATUS
+        // ==========================================
+
+        async function loadStatuses() {
+            const container = document.getElementById('statusList');
+            
+            if (!currentUser.contacts || currentUser.contacts.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📷</div>
+                        <div>No status updates</div>
+                        <div>Add contacts to see their status</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '<div style="padding:15px;color:var(--text-secondary);text-align:center">Loading statuses...</div>';
+            
+            if (currentUser.status) {
+                document.getElementById('myStatusTime').textContent = formatTime(currentUser.status.timestamp);
+            }
+
+            const fragment = document.createDocumentFragment();
+            let hasStatuses = false;
+
+            for (const contactData of currentUser.contacts) {
+                try {
+                    const code = contactData.code || contactData;
+                    const codeSnapshot = await database.ref('codes/' + code).once('value');
+                    const uid = codeSnapshot.val();
+                    if (!uid) continue;
+                    
+                    const userSnapshot = await database.ref('users/' + uid).once('value');
+                    const contact = userSnapshot.val();
+                    if (!contact || !contact.status) continue;
+
+                    hasStatuses = true;
+                    const statusItem = document.createElement('div');
+                    statusItem.className = 'status-item';
+                    statusItem.onclick = () => viewStatus(contact);
+                    
+                    const avatarHtml = contact.avatar ? 
+                        `<img src="${contact.avatar}" style="width:100%;height:100%;object-fit:cover">` : 
+                        `<span>${getInitials(contact.name)}</span>`;
+                    
+                    statusItem.innerHTML = `
+                        <div class="status-avatar">${avatarHtml}</div>
+                        <div class="status-content">
+                            <div class="status-name">${escapeHtml(contact.name)}</div>
+                            <div class="status-time">${formatTime(contact.status.timestamp)}</div>
+                            <div class="status-text-preview">${escapeHtml(contact.status.text || 'Status update')}</div>
+                        </div>
+                    `;
+                    fragment.appendChild(statusItem);
+                } catch (error) {
+                    console.error('Error loading status:', error);
+                }
+            }
+
+            container.innerHTML = '';
+            if (!hasStatuses) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📷</div>
+                        <div>No status updates</div>
+                        <div>Your contacts haven't posted anything yet</div>
+                    </div>
+                `;
+            } else {
+                container.appendChild(fragment);
+            }
+        }
+
+        function showStatusSection() {
+            document.getElementById('statusSection').classList.add('active');
+            document.getElementById('sidebar').classList.add('hidden-mobile');
+            loadStatuses();
+        }
+
+        function hideStatusSection() {
+            document.getElementById('statusSection').classList.remove('active');
+            document.getElementById('sidebar').classList.remove('hidden-mobile');
+        }
+
+        function showStatusModal() {
+            document.getElementById('statusModal').classList.add('active');
+            document.getElementById('statusTextInput').value = '';
+        }
+
+        function closeStatusModal() {
+            document.getElementById('statusModal').classList.remove('active');
+        }
+
+        async function postStatus() {
+            const text = document.getElementById('statusTextInput').value.trim();
+            if (!text) return showToast('Please enter some text', 'error');
+            
+            const statusData = {
+                text: text,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+
+            try {
+                await database.ref('users/' + currentUser.uid + '/status').set(statusData);
+                closeStatusModal();
+                document.getElementById('myStatusTime').textContent = 'Just now';
+                showToast('Status updated!', 'success');
+                loadStatuses();
+            } catch (error) {
+                showToast('Failed to update status: ' + error.message, 'error');
+            }
+        }
+
+        function viewStatus(contact) {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay active';
+            modal.style.zIndex = '5000';
+            modal.innerHTML = `
+                <div style="background:#000;width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;color:#fff;position:relative">
+                    <button onclick="this.closest('.modal-overlay').remove()" style="position:absolute;top:20px;right:20px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;z-index:10">×</button>
+                    <div style="position:absolute;top:20px;left:20px;display:flex;align-items:center;gap:10px">
+                        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#667781 0%,#111b21 100%);display:flex;align-items:center;justify-content:center;font-weight:600">
+                            ${contact.avatar ? `<img src="${contact.avatar}" style="width:100%;height:100%;border-radius:50%;object-fit:cover">` : getInitials(contact.name)}
+                        </div>
+                        <div>
+                            <div style="font-weight:600">${escapeHtml(contact.name)}</div>
+                            <div style="font-size:12px;opacity:0.8">${formatTime(contact.status.timestamp)}</div>
+                        </div>
+                    </div>
+                    <div style="font-size:24px;text-align:center;padding:40px;max-width:80%">${escapeHtml(contact.status.text)}</div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            setTimeout(() => modal.remove(), 5000);
+        }
+
+        // ==========================================
+        // CALLS
+        // ==========================================
+
+        function showCallsSection() {
+            document.getElementById('callsSection').classList.add('active');
+            document.getElementById('sidebar').classList.add('hidden-mobile');
+            loadCalls();
+        }
+
+        function hideCallsSection() {
+            document.getElementById('callsSection').classList.remove('active');
+            document.getElementById('sidebar').classList.remove('hidden-mobile');
+        }
+
+        async function loadCalls() {
+            const container = document.getElementById('callsList');
+            const callsSnapshot = await database.ref('calls/' + currentUser.uid).limitToLast(20).once('value');
+            const calls = callsSnapshot.val();
+            
+            if (!calls) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">📞</div>
+                        <div>No calls yet</div>
+                        <div>Start calling your contacts</div>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            const callsArray = Object.entries(calls).sort((a, b) => b[1].timestamp - a[1].timestamp);
+            
+            for (const [callId, call] of callsArray) {
+                const contactSnapshot = await database.ref('users/' + (call.with === currentUser.uid ? call.from : call.with)).once('value');
+                const contact = contactSnapshot.val();
+                if (!contact) continue;
+                
+                const callItem = document.createElement('div');
+                callItem.className = 'status-item';
+                callItem.style.cursor = 'pointer';
+                
+                const isIncoming = call.to === currentUser.uid;
+                const isMissed = call.status === 'missed';
+                const icon = call.type === 'video' ? '📹' : '📞';
+                const color = isMissed ? 'var(--danger)' : (isIncoming ? 'var(--primary)' : 'var(--text-secondary)');
+                
+                callItem.innerHTML = `
+                    <div style="width:48px;height:48px;border-radius:50%;background:${color}20;display:flex;align-items:center;justify-content:center;font-size:20px;color:${color}">
+                        ${icon}
+                    </div>
+                    <div class="status-content">
+                        <div class="status-name">${escapeHtml(contact.name)}</div>
+                        <div style="display:flex;align-items:center;gap:5px;font-size:13px;color:${color}">
+                            <span>${isIncoming ? '↓' : '↑'}</span>
+                            <span>${isMissed ? 'Missed' : call.status}</span>
+                        </div>
+                    </div>
+                    <div class="chat-time">${formatTime(call.timestamp)}</div>
+                `;
+                
+                callItem.onclick = () => startCall(contact, call.type);
+                container.appendChild(callItem);
+            }
+        }
+
+        function startVoiceCall() {
+            if (!currentChat) return;
+            startCall(currentChat, 'audio');
+        }
+
+        function startVideoCall() {
+            if (!currentChat) return;
+            startCall(currentChat, 'video');
+        }
+
+        async function startCall(contact, type) {
+            const overlay = document.getElementById('callOverlay');
+            document.getElementById('callName').textContent = contact.name;
+            document.getElementById('callInitial').textContent = getInitials(contact.name);
+            document.getElementById('callStatus').textContent = type === 'video' ? 'Video calling...' : 'Calling...';
+            document.getElementById('acceptCallBtn').style.display = 'none';
+            
+            overlay.classList.add('active');
+            
+            const callData = {
+                from: currentUser.uid,
+                to: contact.uid,
+                with: contact.uid,
+                type: type,
+                status: 'calling',
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            };
+            
+            const callRef = database.ref('calls/' + currentUser.uid).push();
+            await callRef.set(callData);
+            
+            setTimeout(() => {
+                if (overlay.classList.contains('active')) {
+                    document.getElementById('callStatus').textContent = 'Ringing...';
+                }
+            }, 1000);
+        }
+
+        function acceptCall() {
+            document.getElementById('callStatus').textContent = 'Connected';
+            showToast('Call connected!', 'success');
+        }
+
+        function endCall() {
+            document.getElementById('callOverlay').classList.remove('active');
+            showToast('Call ended', 'success');
+        }
+
+        // ==========================================
+        // INITIALIZATION
+        // ==========================================
+
+        function init() {
+            const savedUser = localStorage.getItem('telesap_currentUser');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        loadUserData(user.uid).then(userData => {
+                            if (userData) {
+                                currentUser = userData;
+                                localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                                showMainApp();
+                            } else {
+                                showLogin();
+                            }
+                        });
+                    } else {
+                        showLogin();
+                    }
+                });
+            } else {
+                showLogin();
+            }
+
+            // Global click listener
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.context-menu') && !e.target.closest('.chat-item')) {
+                    document.getElementById('contextMenu').classList.remove('active');
+                }
+                if (!e.target.closest('.emoji-picker') && !e.target.closest('.input-action-btn')) {
+                    document.getElementById('emojiPicker').classList.remove('active');
+                }
+            });
+
+            // Visibility change
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden && currentUser) {
+                    loadContacts();
+                    if (currentChat) loadMessages(currentChat);
+                }
+            });
+
+            // Online/offline
+            window.addEventListener('online', () => {
+                showToast('Back online', 'success');
+                if (currentUser) {
+                    setupPresence();
+                    loadContacts();
+                }
+            });
+            
+            window.addEventListener('offline', () => {
+                showToast('You are offline', 'error');
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    closeAllModals();
+                    if (window.innerWidth <= 900 && currentChat) closeChatArea();
+                }
+            });
+
+            // Prevent double tap zoom
+            let lastTouchEnd = 0;
+            document.addEventListener('touchend', (e) => {
+                const now = Date.now();
+                if (now - lastTouchEnd <= 300) e.preventDefault();
+                lastTouchEnd = now;
+            }, { passive: false });
+
+            // Resize handler
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(() => {
+                    if (window.innerWidth > 900) {
+                        document.getElementById('sidebar').classList.remove('hidden-mobile');
+                    }
+                }, 100);
+            });
+        }
+
+        function setupContactsListener() {
+            if (!database || !currentUser) return;
+            const contactsRef = database.ref('users/' + currentUser.uid + '/contacts');
+            contactsRef.on('value', (snapshot) => {
+                const contacts = snapshot.val();
+                if (contacts) {
+                    currentUser.contacts = contacts;
+                    localStorage.setItem('telesap_currentUser', JSON.stringify(currentUser));
+                    loadContacts();
+                }
+            });
+            contactsListeners.push(contactsRef);
+            
+            database.ref('users/' + currentUser.uid + '/blocked').on('value', (snapshot) => {
+                currentUser.blocked = snapshot.val() || [];
+            });
+        }
+
+        // Start app
+        init();
+    </script>
+</body>
+</html>
+
